@@ -66,7 +66,7 @@ HRESULT CSaverBase::InitDirect3D()
 
 	UINT createDeviceFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)  
-//    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
 	ComPtr<IDXGIAdapter> pAdapter;

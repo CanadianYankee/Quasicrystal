@@ -241,6 +241,10 @@ BOOL CQuasiSaver::RenderScene()
 	m_pD3DContext->UpdateSubresource(m_pVertexBuffer.Get(), 0, NULL, vb, 0, 0);
 	m_pD3DContext->UpdateSubresource(m_pIndexBuffer.Get(), 0, NULL, ib, 0, 0);
 
+	UINT stride = sizeof(CTileDrawer::DXVertex);
+	UINT offset = 0;
+	m_pD3DContext->IASetVertexBuffers(0, 1, m_pVertexBuffer.GetAddressOf(), &stride, &offset);
+	m_pD3DContext->IASetIndexBuffer(m_pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 	m_pD3DContext->VSSetShader(m_pVertexShader.Get(), NULL, 0);
 	m_pD3DContext->VSSetConstantBuffers(0, 1, m_pCBFrameVariables.GetAddressOf());
