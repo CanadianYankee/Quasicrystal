@@ -78,8 +78,43 @@ bool CTileDrawer::PrepareNextTile()
 
 size_t CTileDrawer::RemapBuffers(ComPtr<ID3D11DeviceContext> pContext, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer)
 {
-	pContext->UpdateSubresource(pVertexBuffer.Get(), 0, NULL, m_arrVertices.data(), 0, 0);
-	pContext->UpdateSubresource(pIndexBuffer.Get(), 0, NULL, m_arrIndices.data(), 0, 0);
+	HRESULT hr = S_OK;
+
+	D3D11_MAPPED_SUBRESOURCE mapData;
+	mapData.pData = nullptr;
+	mapData.RowPitch = m_pQuasiCalculator->m_nMaxTiles * sizeof(DXVertex);
+	mapData.DepthPitch = 0;
+
+	hr = pContext->Map(pVertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapData);
+
+	if (SUCCEEDED(hr))
+	{
+		assert(mapData.pData != nullptr);
+		memset(mapData.pData, 0, mapData.RowPitch);
+		memcpy(mapData.pData, m_arrVertices.data(), m_nVertices * sizeof(DXVertex));
+
+		pContext->Unmap(pVertexBuffer.Get(), 0);
+	}
+
+	mapData.pData = nullptr;
+	mapData.RowPitch = m_pQuasiCalculator->m_nMaxTiles * sizeof(UINT);
+	mapData.DepthPitch = 0;
+
+	hr = pContext->Map(pIndexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapData);
+
+	if (SUCCEEDED(hr))
+	{
+		assert(mapData.pData != nullptr);
+		memset(mapData.pData, 0, mapData.RowPitch);
+		memcpy(mapData.pData, m_arrIndices.data(), m_nIndices * sizeof(UINT));
+
+		pContext->Unmap(pIndexBuffer.Get(), 0);
+	}
+
+
+
+//	pContext->UpdateSubresource(pVertexBuffer.Get(), 0, NULL, m_arrVertices.data(), 0, 0);
+//	pContext->UpdateSubresource(pIndexBuffer.Get(), 0, NULL, m_arrIndices.data(), 0, 0);
 
 	return m_nIndices;
 }

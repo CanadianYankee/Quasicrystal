@@ -25,7 +25,7 @@ private:
 	
 	CQuasiCalculator *m_pQuasiCalculator;
 	std::vector<DXVertex> m_arrVertices;
-	std::vector<int> m_arrIndices;
+	std::vector<UINT> m_arrIndices;
 	size_t m_nVertices;
 	size_t m_nIndices;
 };

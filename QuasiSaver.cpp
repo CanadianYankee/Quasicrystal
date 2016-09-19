@@ -221,25 +221,25 @@ BOOL CQuasiSaver::RenderScene()
 	m_pD3DContext->IASetInputLayout(m_pInputLayout.Get());
 	m_pD3DContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	m_pD3DContext->UpdateSubresource(m_pCBFrameVariables.Get(), 0, NULL, &m_sFrameVariables, 0, 0);
+//	m_pD3DContext->UpdateSubresource(m_pCBFrameVariables.Get(), 0, NULL, &m_sFrameVariables, 0, 0);
 
-//	int nIndices = m_pTileDrawer->RemapBuffers(m_pD3DContext, m_pVertexBuffer, m_pIndexBuffer);
+	int nIndices = m_pTileDrawer->RemapBuffers(m_pD3DContext, m_pVertexBuffer, m_pIndexBuffer);
 
-	int nIndices = 6;
-	CTileDrawer::DXVertex vb[4];
-	vb[0].Pos.x = 0.2f; vb[0].Pos.y = 0.25f;
-	vb[1].Pos.x = 0.4f; vb[1].Pos.y = 0.75f;
-	vb[2].Pos.x = 0.8f; vb[2].Pos.y = 0.75f;
-	vb[3].Pos.x = 0.6f; vb[3].Pos.y = 0.25f;
-	XMFLOAT4 clr = { 1.0f, 1.0f, 0.0f, 1.0f };
-	vb[0].Color = vb[1].Color = vb[2].Color = vb[3].Color = clr;
+	//int nIndices = 6;
+	//CTileDrawer::DXVertex vb[4];
+	//vb[0].Pos.x = 0.2f; vb[0].Pos.y = 0.25f;
+	//vb[1].Pos.x = 0.4f; vb[1].Pos.y = 0.75f;
+	//vb[2].Pos.x = 0.8f; vb[2].Pos.y = 0.75f;
+	//vb[3].Pos.x = 0.6f; vb[3].Pos.y = 0.25f;
+	//XMFLOAT4 clr = { 1.0f, 1.0f, 0.0f, 1.0f };
+	//vb[0].Color = vb[1].Color = vb[2].Color = vb[3].Color = clr;
 
-	int ib[6];
-	ib[0] = 0; ib[1] = 1; ib[2] = 3;
-	ib[3] = 1; ib[4] = 2; ib[5] = 3;
+	//int ib[6];
+	//ib[0] = 0; ib[1] = 1; ib[2] = 3;
+	//ib[3] = 1; ib[4] = 2; ib[5] = 3;
 
-	m_pD3DContext->UpdateSubresource(m_pVertexBuffer.Get(), 0, NULL, vb, 0, 0);
-	m_pD3DContext->UpdateSubresource(m_pIndexBuffer.Get(), 0, NULL, ib, 0, 0);
+	//m_pD3DContext->UpdateSubresource(m_pVertexBuffer.Get(), 0, NULL, vb, 0, 0);
+	//m_pD3DContext->UpdateSubresource(m_pIndexBuffer.Get(), 0, NULL, ib, 0, 0);
 
 	UINT stride = sizeof(CTileDrawer::DXVertex);
 	UINT offset = 0;
