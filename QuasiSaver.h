@@ -27,7 +27,7 @@ protected:
 
 	struct FRAME_VARIABLES
 	{
-		XMFLOAT4X4A fv_ViewTransform;
+		XMFLOAT4X4 fv_ViewTransform;
 	};
 
 private:

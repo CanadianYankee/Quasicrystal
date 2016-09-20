@@ -3,12 +3,12 @@
 #include "QuasiCalculator.h"
 #include "TileDrawer.h"
 
+
 CQuasiSaver::CQuasiSaver()
 {
 	m_pQuasiCalculator = nullptr;
 	m_pTileDrawer = nullptr;
 }
-
 
 CQuasiSaver::~CQuasiSaver()
 {
@@ -61,7 +61,7 @@ HRESULT CQuasiSaver::InitializeTiling()
 	int n = m_pTileDrawer->PrepareNextTiles(1);
 	assert(n == 1);
 
-	m_fZoom = 2.0f;
+	m_fZoom = 0.5f;
 	
 	return S_OK;
 }
@@ -71,15 +71,15 @@ HRESULT CQuasiSaver::CreateGeometryBuffers()
 	HRESULT hr = S_OK;
 
 	// Create dynamic vertex buffer with no real data yet
-	size_t iVertices = m_pQuasiCalculator->m_nMaxTiles * 4;
-	CD3D11_BUFFER_DESC vbd(iVertices * sizeof(CTileDrawer::DXVertex), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+	size_t iVertexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 4 * sizeof(CTileDrawer::DXVertex);
+	CD3D11_BUFFER_DESC vbd(iVertexBufferSize, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 	hr = m_pD3DDevice->CreateBuffer(&vbd, nullptr, &m_pVertexBuffer);
 	if (FAILED(hr)) return hr;
 	D3DDEBUGNAME(m_pVertexBuffer, "Tiles Vertex Buffer");
 
 	// Create index buffer with no real data yet
-	size_t iIndices = m_pQuasiCalculator->m_nMaxTiles * 6;
-	CD3D11_BUFFER_DESC ibd(iIndices, D3D10_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+	size_t iIndexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 6 * sizeof(UINT);
+	CD3D11_BUFFER_DESC ibd(iIndexBufferSize, D3D10_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 	hr = m_pD3DDevice->CreateBuffer(&ibd, nullptr, &m_pIndexBuffer);
 	if (FAILED(hr)) return hr;
 	D3DDEBUGNAME(m_pIndexBuffer, "Tiles Index Buffer");
@@ -169,44 +169,60 @@ BOOL CQuasiSaver::IterateSaver(float dt, float T)
 BOOL CQuasiSaver::UpdateScene(float dt, float T)
 {
 
-	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixIdentity());
-	return TRUE;
+#if false
+	float fRadius = 5.0f + 2.0f * sinf(T);
+	float fPhi = (sinf(T * .1243f) + 1.0f);
+	float fTheta = sinf(1.414f * T) * XM_PI;
+	float x = fRadius * sinf(fPhi)*cosf(fTheta);
+	float z = fRadius * sinf(fPhi)*sinf(fTheta);
+	float y = fRadius * cosf(fPhi);
 
+	// Build the view matrix.
+	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
+	XMVECTOR target = XMVectorZero();
+	target = XMVectorSetW(target, 1.0f);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMMATRIX V = XMMatrixLookAtLH(pos, target, up);
+	XMStoreFloat4x4(&m_matView, V);
+
+	XMMATRIX W = XMLoadFloat4x4(&m_matWorld);
+	XMMATRIX P = XMLoadFloat4x4(&m_matProj);
+
+	XMMATRIX mWVP = XMMatrixTranspose(W * V * P);
+	XMStoreFloat4x4(&m_sFrameVariables.fv_ViewTransform, mWVP);
+#else
 #pragma message("TODO: generate some tiles")
 	// Generate more tiles
-
 
 	// Translate to origin
 	XMMATRIX mat = XMMatrixTranslationFromVector(-m_pQuasiCalculator->GetOrigin());
 
-#pragma message("TODO: dynamic zooming")
-	// Move towards fit-all-tiles 
-	mat /= m_fZoom;
-
 	// Time-based spin
 	mat *= XMMatrixRotationZ(T);
 
-	// Adjust for aspect ratio
+#pragma message("TODO: dynamic zooming")
+	// Zoom to fit viewport, adjusting for aspect ratio
 	if (m_fAspectRatio > 1.0f)
 	{
-		mat *= XMMatrixScaling(1.0f / m_fAspectRatio, 1.0f, 1.0f);
+		mat *= XMMatrixScaling(m_fZoom / m_fAspectRatio, m_fZoom, m_fZoom);
 	}
 	else
 	{
-		mat *= XMMatrixScaling(1.0f, m_fAspectRatio, 1.0f);
+		mat *= XMMatrixScaling(m_fZoom, m_fZoom * m_fAspectRatio, m_fZoom);
 	}
 
-	// Put the origin in the vieport center
-	mat *= XMMatrixTranslation(0.5f, 0.5f, 0.0f);
-
 	// Save the matrix in the frame variables
-	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), mat);
+	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixTranspose(mat));
+#endif
 
 	return TRUE;
 }
 
 BOOL CQuasiSaver::RenderScene()
 {
+	HRESULT hr = S_OK;
+
 	if (!m_pD3DContext || !m_pSwapChain)
 	{
 		assert(false);
@@ -221,25 +237,14 @@ BOOL CQuasiSaver::RenderScene()
 	m_pD3DContext->IASetInputLayout(m_pInputLayout.Get());
 	m_pD3DContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-//	m_pD3DContext->UpdateSubresource(m_pCBFrameVariables.Get(), 0, NULL, &m_sFrameVariables, 0, 0);
+	hr = MapDataIntoBuffer(&m_sFrameVariables, sizeof(m_sFrameVariables), m_pCBFrameVariables);
+	if (FAILED(hr))
+	{
+		assert(false);
+		return hr;
+	}
 
-	int nIndices = m_pTileDrawer->RemapBuffers(m_pD3DContext, m_pVertexBuffer, m_pIndexBuffer);
-
-	//int nIndices = 6;
-	//CTileDrawer::DXVertex vb[4];
-	//vb[0].Pos.x = 0.2f; vb[0].Pos.y = 0.25f;
-	//vb[1].Pos.x = 0.4f; vb[1].Pos.y = 0.75f;
-	//vb[2].Pos.x = 0.8f; vb[2].Pos.y = 0.75f;
-	//vb[3].Pos.x = 0.6f; vb[3].Pos.y = 0.25f;
-	//XMFLOAT4 clr = { 1.0f, 1.0f, 0.0f, 1.0f };
-	//vb[0].Color = vb[1].Color = vb[2].Color = vb[3].Color = clr;
-
-	//int ib[6];
-	//ib[0] = 0; ib[1] = 1; ib[2] = 3;
-	//ib[3] = 1; ib[4] = 2; ib[5] = 3;
-
-	//m_pD3DContext->UpdateSubresource(m_pVertexBuffer.Get(), 0, NULL, vb, 0, 0);
-	//m_pD3DContext->UpdateSubresource(m_pIndexBuffer.Get(), 0, NULL, ib, 0, 0);
+	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
 
 	UINT stride = sizeof(CTileDrawer::DXVertex);
 	UINT offset = 0;
@@ -252,7 +257,7 @@ BOOL CQuasiSaver::RenderScene()
 
 	m_pD3DContext->DrawIndexed(nIndices, 0, 0);
 	
-	HRESULT hr = m_pSwapChain->Present(0, 0);
+	hr = m_pSwapChain->Present(0, 0);
 
 	return SUCCEEDED(hr);
 }

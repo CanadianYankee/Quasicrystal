@@ -482,6 +482,36 @@ BOOL CSaverBase::OnResize()
 	return OnResizeSaver();
 }
 
+// Helper function for frequently-updated buffers
+HRESULT CSaverBase::MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource, D3D11_MAP MapType)
+{
+	if (m_pD3DContext == nullptr || pResource == nullptr)
+	{
+		assert(false);
+		return E_FAIL;
+	}
+
+	HRESULT hr = S_OK;
+
+	D3D11_MAPPED_SUBRESOURCE mapData;
+	hr = m_pD3DContext->Map(pResource.Get(), Subresource, MapType, 0, &mapData);
+	if (SUCCEEDED(hr))
+	{
+		size_t nTarget = mapData.RowPitch * ((mapData.DepthPitch > 0) ? mapData.DepthPitch : 1);
+		if (nTarget >= nSize)
+		{
+			memcpy(mapData.pData, pData, nSize);
+		}
+		else
+		{
+			hr = E_FAIL;
+		}
+		m_pD3DContext->Unmap(pResource.Get(), Subresource);
+	}
+
+	return hr;
+}
+
 void CSaverBase::CleanUp()
 {
 	if(m_bRunning)
