@@ -3,6 +3,14 @@
 
 #define BASICDEBUG
 
+#ifdef BASICDEBUG
+struct BasicVertex
+{
+	XMFLOAT3 Pos;
+	XMFLOAT4 Color;
+};
+#endif
+
 class CQuasiCalculator;
 class CTileDrawer;
 

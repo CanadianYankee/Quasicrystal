@@ -483,7 +483,7 @@ BOOL CSaverBase::OnResize()
 }
 
 // Helper function for frequently-updated buffers
-HRESULT CSaverBase::MapDataIntoBuffer(void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource, D3D11_MAP MapType)
+HRESULT CSaverBase::MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource, D3D11_MAP MapType)
 {
 	if (m_pD3DContext == nullptr || pResource == nullptr)
 	{

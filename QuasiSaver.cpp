@@ -3,13 +3,6 @@
 #include "QuasiCalculator.h"
 #include "TileDrawer.h"
 
-#ifdef BASICDEBUG
-struct BasicVertex
-{
-	XMFLOAT3 Pos;
-	XMFLOAT4 Color;
-};
-#endif
 
 CQuasiSaver::CQuasiSaver()
 {
@@ -23,7 +16,6 @@ CQuasiSaver::CQuasiSaver()
 	XMStoreFloat4x4(&m_matProj, I);
 #endif
 }
-
 
 CQuasiSaver::~CQuasiSaver()
 {
@@ -85,78 +77,23 @@ HRESULT CQuasiSaver::CreateGeometryBuffers()
 {
 	HRESULT hr = S_OK;
 
-#ifdef BASICDEBUG
-	// Create vertex buffer
-	BasicVertex vertices[] =
-	{
-		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, +1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }
-	};
-
-	D3D11_SUBRESOURCE_DATA vinitData = { 0 };
-	vinitData.pSysMem = vertices;
-	vinitData.SysMemPitch = 0;
-	vinitData.SysMemSlicePitch = 0;
-	CD3D11_BUFFER_DESC vbd(sizeof(vertices), D3D11_BIND_VERTEX_BUFFER);
-	hr = m_pD3DDevice->CreateBuffer(&vbd, &vinitData, &m_pVertexBuffer);
-
-	if (FAILED(hr)) return hr;
-
-	// Create the index buffer
-	UINT indices[] = {
-		// front face
-		0, 1, 2,
-		0, 2, 3,
-
-		// back face
-		4, 6, 5,
-		4, 7, 6,
-
-		// left face
-		4, 5, 1,
-		4, 1, 0,
-
-		// right face
-		3, 2, 6,
-		3, 6, 7,
-
-		// top face
-		1, 5, 6,
-		1, 6, 2,
-
-		// bottom face
-		4, 0, 3,
-		4, 3, 7
-	};
-	m_nIndices = ARRAYSIZE(indices);
-
-	D3D11_SUBRESOURCE_DATA iinitData = { 0 };
-	iinitData.pSysMem = indices;
-	iinitData.SysMemPitch = 0;
-	CD3D11_BUFFER_DESC ibd(sizeof(indices), D3D11_BIND_INDEX_BUFFER);
-	hr = m_pD3DDevice->CreateBuffer(&ibd, &iinitData, &m_pIndexBuffer);
-
-#else 
 	// Create dynamic vertex buffer with no real data yet
-	size_t iVertices = m_pQuasiCalculator->m_nMaxTiles * 4;
-	CD3D11_BUFFER_DESC vbd(iVertices * sizeof(CTileDrawer::DXVertex), D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+#ifdef BASICDEBUG
+	size_t iVertexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 4 * sizeof(BasicVertex);
+#else
+	size_t iVertexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 4 * sizeof(CTileDrawer::DXVertex);
+#endif
+	CD3D11_BUFFER_DESC vbd(iVertexBufferSize, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 	hr = m_pD3DDevice->CreateBuffer(&vbd, nullptr, &m_pVertexBuffer);
 	if (FAILED(hr)) return hr;
 	D3DDEBUGNAME(m_pVertexBuffer, "Tiles Vertex Buffer");
 
 	// Create index buffer with no real data yet
-	size_t iIndices = m_pQuasiCalculator->m_nMaxTiles * 6;
-	CD3D11_BUFFER_DESC ibd(iIndices, D3D10_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+	size_t iIndexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 6 * sizeof(UINT);
+	CD3D11_BUFFER_DESC ibd(iIndexBufferSize, D3D10_BIND_INDEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 	hr = m_pD3DDevice->CreateBuffer(&ibd, nullptr, &m_pIndexBuffer);
 	if (FAILED(hr)) return hr;
-	D3DDEBUGNAMfE(m_pIndexBuffer, "Tiles Index Buffer");
-#endif
+	D3DDEBUGNAME(m_pIndexBuffer, "Tiles Index Buffer");
 
 	return hr;
 }
@@ -307,7 +244,7 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 	mat *= XMMatrixTranslation(0.5f, 0.5f, 0.0f);
 
 	// Save the matrix in the frame variables
-	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), mat);
+	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixTranspose(mat));
 #endif
 
 	return TRUE;
@@ -338,12 +275,11 @@ BOOL CQuasiSaver::RenderScene()
 		return hr;
 	}
 
-#ifdef BASICDEBUG
-	int nIndices = m_nIndices;
-	UINT stride = sizeof(BasicVertex);
-
-#else
 	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
+
+#ifdef BASICDEBUG
+	UINT stride = sizeof(BasicVertex);
+#else
 	UINT stride = sizeof(CTileDrawer::DXVertex);
 #endif
 	UINT offset = 0;

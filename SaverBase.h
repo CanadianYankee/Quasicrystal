@@ -25,7 +25,7 @@ public:
 	void ResumeResized(int cx, int cy);
 	void CleanUp();
 
-	HRESULT MapDataIntoBuffer(void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource = 0, D3D11_MAP MapType = D3D11_MAP_WRITE_DISCARD);
+	HRESULT MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource = 0, D3D11_MAP MapType = D3D11_MAP_WRITE_DISCARD);
 
 protected:
 	// Override these functions to implement your saver - return FALSE to error out and shut down
