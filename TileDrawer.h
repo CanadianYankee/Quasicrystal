@@ -1,6 +1,7 @@
 #pragma once
 using Microsoft::WRL::ComPtr;
 
+class CQuasiSaver;
 class CQuasiCalculator;
 
 class CTileDrawer
@@ -18,7 +19,7 @@ public:
 	};
 
 	size_t PrepareNextTiles(size_t nTiles);
-	size_t RemapBuffers(ComPtr<ID3D11DeviceContext> pContext, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer);
+	size_t RemapBuffers(CQuasiSaver *pSaver, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer);
 
 private:
 	bool PrepareNextTile();

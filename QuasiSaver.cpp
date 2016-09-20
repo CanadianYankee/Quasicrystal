@@ -211,7 +211,7 @@ HRESULT CQuasiSaver::PrepareShaderConstants()
 
 	// Create the constant buffer
 #ifdef BASICDEBUG
-	CD3D11_BUFFER_DESC desc(sizeof(FRAME_VARIABLES), D3D11_BIND_CONSTANT_BUFFER);
+	CD3D11_BUFFER_DESC desc(sizeof(FRAME_VARIABLES), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 #else
 	CD3D11_BUFFER_DESC desc(sizeof(FRAME_VARIABLES), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 #endif
@@ -315,6 +315,8 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 
 BOOL CQuasiSaver::RenderScene()
 {
+	HRESULT hr = S_OK;
+
 	if (!m_pD3DContext || !m_pSwapChain)
 	{
 		assert(false);
@@ -329,13 +331,19 @@ BOOL CQuasiSaver::RenderScene()
 	m_pD3DContext->IASetInputLayout(m_pInputLayout.Get());
 	m_pD3DContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	m_pD3DContext->UpdateSubresource(m_pCBFrameVariables.Get(), 0, NULL, &m_sFrameVariables, 0, 0);
+	hr = MapDataIntoBuffer(&m_sFrameVariables, sizeof(m_sFrameVariables), m_pCBFrameVariables);
+	if (FAILED(hr))
+	{
+		assert(false);
+		return hr;
+	}
 
 #ifdef BASICDEBUG
 	int nIndices = m_nIndices;
 	UINT stride = sizeof(BasicVertex);
+
 #else
-	int nIndices = m_pTileDrawer->RemapBuffers(m_pD3DContext, m_pVertexBuffer, m_pIndexBuffer);
+	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
 	UINT stride = sizeof(CTileDrawer::DXVertex);
 #endif
 	UINT offset = 0;
@@ -348,7 +356,7 @@ BOOL CQuasiSaver::RenderScene()
 
 	m_pD3DContext->DrawIndexed(nIndices, 0, 0);
 	
-	HRESULT hr = m_pSwapChain->Present(0, 0);
+	hr = m_pSwapChain->Present(0, 0);
 
 	return SUCCEEDED(hr);
 }
