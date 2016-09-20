@@ -168,30 +168,6 @@ BOOL CQuasiSaver::IterateSaver(float dt, float T)
 
 BOOL CQuasiSaver::UpdateScene(float dt, float T)
 {
-
-#if false
-	float fRadius = 5.0f + 2.0f * sinf(T);
-	float fPhi = (sinf(T * .1243f) + 1.0f);
-	float fTheta = sinf(1.414f * T) * XM_PI;
-	float x = fRadius * sinf(fPhi)*cosf(fTheta);
-	float z = fRadius * sinf(fPhi)*sinf(fTheta);
-	float y = fRadius * cosf(fPhi);
-
-	// Build the view matrix.
-	XMVECTOR pos = XMVectorSet(x, y, z, 1.0f);
-	XMVECTOR target = XMVectorZero();
-	target = XMVectorSetW(target, 1.0f);
-	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-	XMMATRIX V = XMMatrixLookAtLH(pos, target, up);
-	XMStoreFloat4x4(&m_matView, V);
-
-	XMMATRIX W = XMLoadFloat4x4(&m_matWorld);
-	XMMATRIX P = XMLoadFloat4x4(&m_matProj);
-
-	XMMATRIX mWVP = XMMatrixTranspose(W * V * P);
-	XMStoreFloat4x4(&m_sFrameVariables.fv_ViewTransform, mWVP);
-#else
 #pragma message("TODO: generate some tiles")
 	// Generate more tiles
 
@@ -214,7 +190,6 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 
 	// Save the matrix in the frame variables
 	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixTranspose(mat));
-#endif
 
 	return TRUE;
 }
