@@ -10,7 +10,7 @@ cbuffer cbFrameVariables : register(b0)
 // Particle input to vertex shader 
 struct VSRenderIn
 {
-	float2	position : POSITION;	// Vertex position
+	float3	position : POSITION;	// Vertex position
 	float4	color	 : COLOR;		// Vertex color
 };
 
@@ -26,7 +26,7 @@ VSRenderOut RenderVS( VSRenderIn input )
 {
 	VSRenderOut output;
 
-	output.position = mul(float4(input.position, 0.0f, 1.0f), fv_ViewTransform);
+	output.position = mul(float4(input.position, 1.0f), fv_ViewTransform);
 	output.color = input.color;
 
 	return output;
