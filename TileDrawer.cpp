@@ -52,22 +52,22 @@ bool CTileDrawer::PrepareNextTile()
 	if (pTile->Winding() > 0)
 	{
 		m_arrIndices[m_nIndices]     = m_nVertices;
-		m_arrIndices[m_nIndices + 1] = m_nVertices + 1;
-		m_arrIndices[m_nIndices + 2] = m_nVertices + 3;
-
-		m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
-		m_arrIndices[m_nIndices + 4] = m_nVertices + 2;
-		m_arrIndices[m_nIndices + 5] = m_nVertices + 3;
-	}
-	else
-	{
-		m_arrIndices[m_nIndices]     = m_nVertices;
 		m_arrIndices[m_nIndices + 1] = m_nVertices + 3;
 		m_arrIndices[m_nIndices + 2] = m_nVertices + 1;
 
 		m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
 		m_arrIndices[m_nIndices + 4] = m_nVertices + 3;
 		m_arrIndices[m_nIndices + 5] = m_nVertices + 2;
+	}
+	else
+	{
+		m_arrIndices[m_nIndices]     = m_nVertices;
+		m_arrIndices[m_nIndices + 1] = m_nVertices + 1;
+		m_arrIndices[m_nIndices + 2] = m_nVertices + 3;
+
+		m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
+		m_arrIndices[m_nIndices + 4] = m_nVertices + 2;
+		m_arrIndices[m_nIndices + 5] = m_nVertices + 3;
 	}
 
 	m_nVertices += 4;
@@ -81,7 +81,7 @@ size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVe
 	HRESULT hr = S_OK;
 	UINT nIndices = 0;
 
-#ifdef BASICDEBUG
+#if false
 	// Create vertex buffer
 	BasicVertex vertices[] =
 	{
@@ -125,7 +125,7 @@ size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVe
 	};
 
 	if (SUCCEEDED(hr))
-	{	 
+	{
 		hr = pDXSaver->MapDataIntoBuffer(indices, sizeof(indices), pIndexBuffer);
 		if (SUCCEEDED(hr))
 		{
@@ -135,9 +135,20 @@ size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVe
 
 	return nIndices;
 
-	
+
+#else
+#if defined(BASICDEBUG)
+	std::vector<BasicVertex> arrBasic(m_nVertices);
+	for (size_t i = 0; i < m_nVertices; i++)
+	{
+		arrBasic[i].Pos = XMFLOAT3(m_arrVertices[i].Pos.x, m_arrVertices[i].Pos.y, 0.0f);
+		arrBasic[i].Color = m_arrVertices[i].Color;
+	}
+	hr = pDXSaver->MapDataIntoBuffer(arrBasic.data(), m_nVertices * sizeof(BasicVertex), pVertexBuffer);
+
 #else
 	hr = pDXSaver->MapDataIntoBuffer(m_arrVertices.data(), m_nVertices * sizeof(DXVertex), pVertexBuffer);
+#endif
 	if (SUCCEEDED(hr))
 	{
 		hr = pDXSaver->MapDataIntoBuffer(m_arrIndices.data(), m_nIndices * sizeof(UINT), pIndexBuffer);

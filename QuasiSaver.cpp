@@ -68,7 +68,7 @@ HRESULT CQuasiSaver::InitializeTiling()
 	int n = m_pTileDrawer->PrepareNextTiles(1);
 	assert(n == 1);
 
-	m_fZoom = 2.0f;
+	m_fZoom = 0.5f;
 	
 	return S_OK;
 }
@@ -193,7 +193,7 @@ BOOL CQuasiSaver::IterateSaver(float dt, float T)
 BOOL CQuasiSaver::UpdateScene(float dt, float T)
 {
 
-#ifdef BASICDEBUG
+#if false
 	float fRadius = 5.0f + 2.0f * sinf(T);
 	float fPhi = (sinf(T * .1243f) + 1.0f);
 	float fTheta = sinf(1.414f * T) * XM_PI;
@@ -219,29 +219,22 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 #pragma message("TODO: generate some tiles")
 	// Generate more tiles
 
-
 	// Translate to origin
 	XMMATRIX mat = XMMatrixTranslationFromVector(-m_pQuasiCalculator->GetOrigin());
-
-#pragma message("TODO: dynamic zooming")
-	// Move towards fit-all-tiles 
-	mat /= m_fZoom;
 
 	// Time-based spin
 	mat *= XMMatrixRotationZ(T);
 
-	// Adjust for aspect ratio
+#pragma message("TODO: dynamic zooming")
+	// Zoom to fit viewport, adjusting for aspect ratio
 	if (m_fAspectRatio > 1.0f)
 	{
-		mat *= XMMatrixScaling(1.0f / m_fAspectRatio, 1.0f, 1.0f);
+		mat *= XMMatrixScaling(m_fZoom / m_fAspectRatio, m_fZoom, m_fZoom);
 	}
 	else
 	{
-		mat *= XMMatrixScaling(1.0f, m_fAspectRatio, 1.0f);
+		mat *= XMMatrixScaling(m_fZoom, m_fZoom * m_fAspectRatio, m_fZoom);
 	}
-
-	// Put the origin in the vieport center
-	mat *= XMMatrixTranslation(0.5f, 0.5f, 0.0f);
 
 	// Save the matrix in the frame variables
 	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixTranspose(mat));
