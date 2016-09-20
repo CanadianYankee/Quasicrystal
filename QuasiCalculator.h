@@ -9,11 +9,10 @@ public:
 	virtual ~CQuasiCalculator();
 
 	const CQTile *DrawNextTile();
-	XMVECTOR GetOrigin() const { return XMLoadFloat2(&m_QOrigin); }
 	float GetRadius() const { return m_QTileStore.GetRadius(); }
 
 	const size_t m_iSymmetry;
-	const size_t m_nMaxTiles = 6;
+	const size_t m_nMaxTiles = 400;
 
 private:
 	void LocateQTile(UINT nDLineSet0, int nDOffset0, UINT nDLineSet1, int nDOffset, const CQTile *&Tile);
@@ -42,7 +41,7 @@ private:
 		inline int OffsetTo(XMVECTOR &point)
 		{
 			float fDist;
-			XMStoreFloat(&fDist, XMVector2Dot(XMVectorSubtract(point, XMLoadFloat2(&origin)), XMLoadFloat2(&basis)));
+			XMStoreFloat(&fDist, XMVector2Dot(XMVectorSubtract(point, XMLoadFloat2(&origin)), XMLoadFloat2(&normal)));
 			return (int)floorf(fDist);
 		}
 	};
@@ -51,7 +50,6 @@ private:
 	CQTileStore m_QTileStore;
 	std::set<CQVertex> m_QVertices;
 	size_t m_nReleasedTiles;
-	XMFLOAT2 m_QOrigin;
 };
 
 

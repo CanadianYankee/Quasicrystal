@@ -16,12 +16,12 @@ CTileDrawer::~CTileDrawer()
 {
 }
 
-size_t CTileDrawer::PrepareNextTiles(size_t nTiles)
+size_t CTileDrawer::DrawNextTiles(size_t nTiles)
 {
 	size_t i = 0;
 	for (i = 0; i < nTiles; i++)
 	{
-		bool bSuccess = PrepareNextTile();
+		bool bSuccess = DrawNextTile();
 		if (!bSuccess)
 			break;
 	}
@@ -29,7 +29,7 @@ size_t CTileDrawer::PrepareNextTiles(size_t nTiles)
 	return i;
 }
 
-bool CTileDrawer::PrepareNextTile()
+bool CTileDrawer::DrawNextTile()
 {
 	bool bSuccess = false;
 
@@ -49,26 +49,13 @@ bool CTileDrawer::PrepareNextTile()
 		m_arrVertices[m_nVertices + i].Color = color;
 	}
 
-	if (pTile->Winding() > 0)
-	{
-		m_arrIndices[m_nIndices]     = m_nVertices;
-		m_arrIndices[m_nIndices + 1] = m_nVertices + 3;
-		m_arrIndices[m_nIndices + 2] = m_nVertices + 1;
+	m_arrIndices[m_nIndices]     = m_nVertices;
+	m_arrIndices[m_nIndices + 1] = m_nVertices + 3;
+	m_arrIndices[m_nIndices + 2] = m_nVertices + 1;
 
-		m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
-		m_arrIndices[m_nIndices + 4] = m_nVertices + 3;
-		m_arrIndices[m_nIndices + 5] = m_nVertices + 2;
-	}
-	else
-	{
-		m_arrIndices[m_nIndices]     = m_nVertices;
-		m_arrIndices[m_nIndices + 1] = m_nVertices + 1;
-		m_arrIndices[m_nIndices + 2] = m_nVertices + 3;
-
-		m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
-		m_arrIndices[m_nIndices + 4] = m_nVertices + 2;
-		m_arrIndices[m_nIndices + 5] = m_nVertices + 3;
-	}
+	m_arrIndices[m_nIndices + 3] = m_nVertices + 1;
+	m_arrIndices[m_nIndices + 4] = m_nVertices + 3;
+	m_arrIndices[m_nIndices + 5] = m_nVertices + 2;
 
 	m_nVertices += 4;
 	m_nIndices += 6;

@@ -48,9 +48,14 @@ const CQTile *CQTileStore::DrawOne()
 	{
 		m_fLargestDrawn = pTile->Radius();
 	}
-	else
-	{
-		assert(false);
-	}
+
+	return pTile;
+}
+
+const CQTile *CQTileStore::PeekNextDraw()
+{
+	auto iterFirst = m_QToDraw.begin();
+	const CQTile *pTile = iterFirst->pTile;
+
 	return pTile;
 }

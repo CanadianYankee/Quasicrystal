@@ -18,11 +18,11 @@ public:
 		DXVertex() : Pos(0, 0), Color(0, 0, 0, 0) {}
 	};
 
-	size_t PrepareNextTiles(size_t nTiles);
+	size_t DrawNextTiles(size_t nTiles);
 	size_t RemapBuffers(CQuasiSaver *pSaver, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer);
 
 private:
-	bool PrepareNextTile();
+	bool DrawNextTile();
 	
 	CQuasiCalculator *m_pQuasiCalculator;
 	std::vector<DXVertex> m_arrVertices;

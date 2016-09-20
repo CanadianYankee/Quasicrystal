@@ -7,25 +7,43 @@ CQuasiCalculator::CQuasiCalculator(int iSymmetry) : m_iSymmetry(iSymmetry), m_nR
 {
 	// Create the parallel line sets used for the dual of quasicrystal
 	XMMATRIX mRotation = XMMatrixRotationZ(XM_PI * (2.0f / (float) m_iSymmetry));
-	XMVECTOR vNormal = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR vBasis = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+	XMMATRIX mRandomStart = XMMatrixRotationZ(XM_PI * (2.0f) / m_iSymmetry * frand());
+	vBasis = XMVector2Transform(vBasis, mRandomStart);
 
 	m_lines.reserve(iSymmetry);
 	for (size_t i = 0; i < m_iSymmetry; i++)
 	{
 		LINESET line;
-		XMStoreFloat2(&(line.basis), XMVector2Orthogonal(vNormal));
+		XMStoreFloat2(&(line.basis), vBasis);
+		XMVECTOR vNormal = XMVector2Orthogonal(vBasis);
 		XMStoreFloat2(&(line.normal), vNormal);
 		XMStoreFloat2(&(line.origin), XMVectorScale(vNormal, frand() - 0.5f)); 
 		m_lines.push_back(line);
 
-		vNormal = XMVector2Transform(vNormal, mRotation);
+		vBasis = XMVector2Transform(vBasis, mRotation);
 	}
 	assert(m_lines.size() == m_iSymmetry);
 
-	// Make the first tile and save its center
+	// Make the first tile 
 	const CQTile *pTile;
 	LocateQTile(0, 0, 1, 0, pTile);
-	m_QOrigin = pTile->m_QCenter;
+
+	// Make more until we find the closest one to the origin
+	const CQTile *pLastTile = m_QTileStore.PeekNextDraw();
+	assert(*pLastTile == *pTile);
+	const CQTile *pNextTile = nullptr;
+	for(;;)
+	{
+		std::vector<const CQTile *> vecNeighbors;
+		Find4Neighbors(*pLastTile, vecNeighbors);
+
+		pNextTile = m_QTileStore.PeekNextDraw();
+		if (*pNextTile == *pLastTile)
+			break;
+
+		pLastTile = pNextTile;
+	}
 }
 
 CQuasiCalculator::~CQuasiCalculator()
@@ -101,11 +119,11 @@ void CQuasiCalculator::LocateQTile(UINT nDLineSet0, int nDOffset0, UINT nDLineSe
 		}
 		std::vector<int> offsets = testTile.m_iDOffsets;
 		LocateQVertex(offsets, testTile.m_QVertices[0]);
-		offsets[nBasis0]++;
-		LocateQVertex(offsets, testTile.m_QVertices[1]);
-		offsets[nBasis1]++;
-		LocateQVertex(offsets, testTile.m_QVertices[2]);
 		offsets[nBasis0]--;
+		LocateQVertex(offsets, testTile.m_QVertices[1]);
+		offsets[nBasis1]--;
+		LocateQVertex(offsets, testTile.m_QVertices[2]);
+		offsets[nBasis0]++;
 		LocateQVertex(offsets, testTile.m_QVertices[3]);
 
 		// Save the center point radius
@@ -207,7 +225,7 @@ void CQuasiCalculator::Find2Neighbors(const CQTile &tile, bool bAlongMin, std::v
 			continue;
 
 		float fDist; 
-		XMStoreFloat(&fDist, XMVector2Dot(XMVectorSubtract(vecDIntersection, XMLoadFloat2(&m_lines[i].origin)), XMLoadFloat2(&m_lines[i].basis)));
+		XMStoreFloat(&fDist, XMVector2Dot(XMVectorSubtract(vecDIntersection, XMLoadFloat2(&m_lines[i].origin)), XMLoadFloat2(&m_lines[i].normal)));
 		fDist -= floorf(fDist);
 		assert(fDist > 0.0f && fDist < 1.0f);
 
@@ -235,7 +253,7 @@ void CQuasiCalculator::Find2Neighbors(const CQTile &tile, bool bAlongMin, std::v
 			signNextPos = signPos;
 		}
 		
-		if (distNeg < distNextNeg)
+		if (-distNeg < -distNextNeg)
 		{
 			nNextDNeg = i;
 			distNextNeg = distNeg;

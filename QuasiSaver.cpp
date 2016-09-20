@@ -58,8 +58,7 @@ HRESULT CQuasiSaver::InitializeTiling()
 	m_pQuasiCalculator = new CQuasiCalculator(5);
 	m_pTileDrawer = new CTileDrawer(m_pQuasiCalculator);
 
-	int n = m_pTileDrawer->PrepareNextTiles(1);
-	assert(n == 1);
+	int n = m_pTileDrawer->DrawNextTiles(m_pQuasiCalculator->m_nMaxTiles);
 
 	m_fZoom = 0.5f;
 	
@@ -171,21 +170,20 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 #pragma message("TODO: generate some tiles")
 	// Generate more tiles
 
-	// Translate to origin
-	XMMATRIX mat = XMMatrixTranslationFromVector(-m_pQuasiCalculator->GetOrigin());
-
 	// Time-based spin
-	mat *= XMMatrixRotationZ(T);
+	XMMATRIX mat = XMMatrixRotationZ(T);
 
 #pragma message("TODO: dynamic zooming")
 	// Zoom to fit viewport, adjusting for aspect ratio
+	float fScale = 1.0f / m_pQuasiCalculator->GetRadius();
+
 	if (m_fAspectRatio > 1.0f)
 	{
-		mat *= XMMatrixScaling(m_fZoom / m_fAspectRatio, m_fZoom, m_fZoom);
+		mat *= XMMatrixScaling(fScale, fScale * m_fAspectRatio, fScale);
 	}
 	else
 	{
-		mat *= XMMatrixScaling(m_fZoom, m_fZoom * m_fAspectRatio, m_fZoom);
+		mat *= XMMatrixScaling(fScale / m_fAspectRatio, fScale, fScale);
 	}
 
 	// Save the matrix in the frame variables
