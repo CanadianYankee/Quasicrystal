@@ -55,12 +55,23 @@ void CQuasiSaver::CleanUpSaver()
 
 HRESULT CQuasiSaver::InitializeTiling()
 {
+	// If we're re-initialzing, then clean up the existing stuff
+	if (m_pTileDrawer != nullptr)
+	{
+		delete m_pTileDrawer;
+		m_pTileDrawer = nullptr;
+	}
+	if (m_pQuasiCalculator != nullptr)
+	{
+		delete m_pQuasiCalculator;
+		m_pQuasiCalculator = nullptr;
+	}
+
 	m_pQuasiCalculator = new CQuasiCalculator(5);
 	m_pTileDrawer = new CTileDrawer(m_pQuasiCalculator);
 
-	int n = m_pTileDrawer->DrawNextTiles(m_pQuasiCalculator->m_nMaxTiles);
-
-	m_fZoom = 0.5f;
+	m_fCurrentScale = 1.0f;
+	m_fLastGenerated = 0.0f;
 	
 	return S_OK;
 }
@@ -167,23 +178,35 @@ BOOL CQuasiSaver::IterateSaver(float dt, float T)
 
 BOOL CQuasiSaver::UpdateScene(float dt, float T)
 {
-#pragma message("TODO: generate some tiles")
-	// Generate more tiles
+	// Generate more tiles as called for
+	if (T - m_fLastGenerated > m_fGenerationPeriod)
+	{
+		int n = m_pTileDrawer->DrawNextTiles(1);
+		if (n == 0)
+		{
+			// We've hit our max - restart!
+			InitializeTiling();
+			m_pTileDrawer->DrawNextTiles(1);
+		}
+		m_fLastGenerated = T;
+	}
 
 	// Time-based spin
 	XMMATRIX mat = XMMatrixRotationZ(T);
 
-#pragma message("TODO: dynamic zooming")
 	// Zoom to fit viewport, adjusting for aspect ratio
-	float fScale = 1.0f / m_pQuasiCalculator->GetRadius();
+	float fDesiredScale = m_pQuasiCalculator->GetRadius();
+	float fScaleVelocity = (fDesiredScale > m_fCurrentScale) ? fDesiredScale - m_fCurrentScale : 0;
+	m_fCurrentScale += fScaleVelocity * m_fScaleInertia * dt;
+	float fZoom = 1.0f / m_fCurrentScale;
 
 	if (m_fAspectRatio > 1.0f)
 	{
-		mat *= XMMatrixScaling(fScale, fScale * m_fAspectRatio, fScale);
+		mat *= XMMatrixScaling(fZoom, fZoom * m_fAspectRatio, fZoom);
 	}
 	else
 	{
-		mat *= XMMatrixScaling(fScale / m_fAspectRatio, fScale, fScale);
+		mat *= XMMatrixScaling(fZoom / m_fAspectRatio, fZoom, fZoom);
 	}
 
 	// Save the matrix in the frame variables

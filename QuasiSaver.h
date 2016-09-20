@@ -52,6 +52,9 @@ private:
 	ComPtr<ID3D11Buffer> m_pCBFrameVariables;
 	FRAME_VARIABLES m_sFrameVariables;
 
-	float m_fZoom;
+	float m_fCurrentScale;
+	const float m_fScaleInertia = 1.0f;
+	const float m_fGenerationPeriod = 0.05f;
+	float m_fLastGenerated;
 };
 
