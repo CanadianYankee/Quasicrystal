@@ -1,16 +1,6 @@
 #pragma once
 #include "SaverBase.h"
 
-#define BASICDEBUG
-
-#ifdef BASICDEBUG
-struct BasicVertex
-{
-	XMFLOAT3 Pos;
-	XMFLOAT4 Color;
-};
-#endif
-
 class CQuasiCalculator;
 class CTileDrawer;
 
@@ -61,13 +51,6 @@ private:
 
 	ComPtr<ID3D11Buffer> m_pCBFrameVariables;
 	FRAME_VARIABLES m_sFrameVariables;
-
-#ifdef BASICDEBUG
-	size_t m_nIndices;
-	XMFLOAT4X4 m_matWorld;
-	XMFLOAT4X4 m_matView;
-	XMFLOAT4X4 m_matProj;
-#endif
 
 	float m_fZoom;
 };

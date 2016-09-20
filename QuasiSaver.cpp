@@ -8,13 +8,6 @@ CQuasiSaver::CQuasiSaver()
 {
 	m_pQuasiCalculator = nullptr;
 	m_pTileDrawer = nullptr;
-
-#ifdef BASICDEBUG
-	XMMATRIX I = XMMatrixIdentity();
-	XMStoreFloat4x4(&m_matWorld, I);
-	XMStoreFloat4x4(&m_matView, I);
-	XMStoreFloat4x4(&m_matProj, I);
-#endif
 }
 
 CQuasiSaver::~CQuasiSaver()
@@ -78,11 +71,7 @@ HRESULT CQuasiSaver::CreateGeometryBuffers()
 	HRESULT hr = S_OK;
 
 	// Create dynamic vertex buffer with no real data yet
-#ifdef BASICDEBUG
-	size_t iVertexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 4 * sizeof(BasicVertex);
-#else
 	size_t iVertexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 4 * sizeof(CTileDrawer::DXVertex);
-#endif
 	CD3D11_BUFFER_DESC vbd(iVertexBufferSize, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 	hr = m_pD3DDevice->CreateBuffer(&vbd, nullptr, &m_pVertexBuffer);
 	if (FAILED(hr)) return hr;
@@ -106,13 +95,8 @@ HRESULT CQuasiSaver::LoadShaders()
 
 	const D3D11_INPUT_ELEMENT_DESC vertexDesc[] =
 	{
-#ifdef BASICDEBUG
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-#else
 		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(CTileDrawer::DXVertex, Pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(CTileDrawer::DXVertex, Color), D3D11_INPUT_PER_VERTEX_DATA, 0 }
-#endif
 	};
 
 	VS_INPUTLAYOUTSETUP ILS;
@@ -147,11 +131,7 @@ HRESULT CQuasiSaver::PrepareShaderConstants()
 	HRESULT hr = S_OK;
 
 	// Create the constant buffer
-#ifdef BASICDEBUG
 	CD3D11_BUFFER_DESC desc(sizeof(FRAME_VARIABLES), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-#else
-	CD3D11_BUFFER_DESC desc(sizeof(FRAME_VARIABLES), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-#endif
 	hr = m_pD3DDevice->CreateBuffer(&desc, nullptr, &m_pCBFrameVariables);
 
 	return hr;
@@ -160,10 +140,6 @@ HRESULT CQuasiSaver::PrepareShaderConstants()
 BOOL CQuasiSaver::OnResizeSaver()
 {
 	// Nothing required (?)
-#ifdef BASICDEBUG
-	XMMATRIX P = XMMatrixPerspectiveFovLH(XM_PIDIV4, m_fAspectRatio, 1.0f, 1000.0f);
-	XMStoreFloat4x4(&m_matProj, P);
-#endif
 		
 	return TRUE;
 }
@@ -270,11 +246,7 @@ BOOL CQuasiSaver::RenderScene()
 
 	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
 
-#ifdef BASICDEBUG
-	UINT stride = sizeof(BasicVertex);
-#else
 	UINT stride = sizeof(CTileDrawer::DXVertex);
-#endif
 	UINT offset = 0;
 	m_pD3DContext->IASetVertexBuffers(0, 1, m_pVertexBuffer.GetAddressOf(), &stride, &offset);
 	m_pD3DContext->IASetIndexBuffer(m_pIndexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);

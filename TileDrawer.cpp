@@ -81,79 +81,11 @@ size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVe
 	HRESULT hr = S_OK;
 	UINT nIndices = 0;
 
-#if false
-	// Create vertex buffer
-	BasicVertex vertices[] =
-	{
-		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, +1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(frand(), frand(), -frand()), XMFLOAT4(1.0f, frand(), 0.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, -1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, -1.0f, +1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(-1.0f, +1.0f, +1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, +1.0f, +1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(+1.0f, -1.0f, +1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) }
-	};
-
-	hr = pDXSaver->MapDataIntoBuffer(vertices, sizeof(vertices), pVertexBuffer);
-
-	// Create the index buffer
-	UINT indices[] = {
-		// front face
-		0, 1, 2,
-		0, 2, 3,
-
-		// back face
-		4, 6, 5,
-		4, 7, 6,
-
-		// left face
-		4, 5, 1,
-		4, 1, 0,
-
-		// right face
-		3, 2, 6,
-		3, 6, 7,
-
-		// top face
-		1, 5, 6,
-		1, 6, 2,
-
-		// bottom face
-		4, 0, 3,
-		4, 3, 7
-	};
-
-	if (SUCCEEDED(hr))
-	{
-		hr = pDXSaver->MapDataIntoBuffer(indices, sizeof(indices), pIndexBuffer);
-		if (SUCCEEDED(hr))
-		{
-			nIndices = ARRAYSIZE(indices);
-		}
-	}
-
-	return nIndices;
-
-
-#else
-#if defined(BASICDEBUG)
-	std::vector<BasicVertex> arrBasic(m_nVertices);
-	for (size_t i = 0; i < m_nVertices; i++)
-	{
-		arrBasic[i].Pos = XMFLOAT3(m_arrVertices[i].Pos.x, m_arrVertices[i].Pos.y, 0.0f);
-		arrBasic[i].Color = m_arrVertices[i].Color;
-	}
-	hr = pDXSaver->MapDataIntoBuffer(arrBasic.data(), m_nVertices * sizeof(BasicVertex), pVertexBuffer);
-
-#else
 	hr = pDXSaver->MapDataIntoBuffer(m_arrVertices.data(), m_nVertices * sizeof(DXVertex), pVertexBuffer);
-#endif
 	if (SUCCEEDED(hr))
 	{
 		hr = pDXSaver->MapDataIntoBuffer(m_arrIndices.data(), m_nIndices * sizeof(UINT), pIndexBuffer);
 	}
 
 	return SUCCEEDED(hr) ? m_nIndices : 0;
-#endif
 }
