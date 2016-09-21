@@ -52,6 +52,7 @@ public:
 	int OffsetsSum() const;
 	int Winding() const;
 	void GetVertices (std::vector<XMFLOAT2> &vecVertices) const;
+	XMFLOAT2 GetCenter() const { return m_QCenter; }
 
 	inline float Radius() const { return m_fRadius; }
 

@@ -11,17 +11,20 @@ CTileDrawer::CTileDrawer(CQuasiCalculator *pQuasiCalculator) : m_pQuasiCalculato
 	m_nIndices = 0;
 	m_nVertices = 0;
 
+	m_bBuffersMapped = false;
+
 	// Define some colors to draw with
 	m_nBaseColors = rand() % 8 + 1;
 	m_bUseColorSpecies = m_nBaseColors > 1 ? frand() < 0.5 : true;
 	size_t nColors = m_bUseColorSpecies ? m_nBaseColors * (m_pQuasiCalculator->m_iSymmetry / 2 + 1) : m_nBaseColors;
 	m_arrColors.resize(nColors);
-	bool bShade = frand() < 0.5;
+	m_bBorders = frand() < 0.5;
+	bool bGradient = frand() < 0.5;
 	for (size_t i = 0; i < nColors; i++)
 	{
 		m_arrColors[i].resize(4);
 		XMFLOAT4 clr(frand(), frand(), frand(), 1.0f);
-		if (bShade)
+		if (bGradient)
 		{
 			m_arrColors[i][0] = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 			m_arrColors[i][1] = clr;
@@ -64,9 +67,6 @@ bool CTileDrawer::DrawNextTile()
 		return false;
 
 	const CQTile *pTile = m_pQuasiCalculator->DrawNextTile();
-	int os = pTile->OffsetsSum();
-	int cc = m_arrColors.size();
-	int sp = pTile->Species();
 	int cIndex = abs(pTile->OffsetsSum()) % m_nBaseColors;
 	if (m_bUseColorSpecies)
 	{
@@ -76,10 +76,24 @@ bool CTileDrawer::DrawNextTile()
 
 	std::vector<XMFLOAT2> vecVertices(4);
 	pTile->GetVertices(vecVertices);
+	XMVECTOR vCenter;
+	if (m_bBorders)
+	{
+		vCenter = XMLoadFloat2(&pTile->GetCenter());
+	}
 
 	for (size_t i = 0; i < 4; i++)
 	{
-		m_arrVertices[m_nVertices + i].Pos = vecVertices[i];
+		if (m_bBorders)
+		{
+			XMVECTOR vVert = XMLoadFloat2(&vecVertices[i]);
+			vVert = 0.95f * (vVert - vCenter) +  vCenter;
+			XMStoreFloat2(&(m_arrVertices[m_nVertices + i].Pos), vVert);
+		}
+		else
+		{
+			m_arrVertices[m_nVertices + i].Pos = vecVertices[i];
+		}
 		m_arrVertices[m_nVertices + i].Color = colors[i];
 	}
 
@@ -94,6 +108,8 @@ bool CTileDrawer::DrawNextTile()
 	m_nVertices += 4;
 	m_nIndices += 6;
 
+	m_bBuffersMapped = false;
+
 	return true;
 }
 
@@ -101,11 +117,14 @@ size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVe
 {
 	HRESULT hr = S_OK;
 	UINT nIndices = 0;
-
-	hr = pDXSaver->MapDataIntoBuffer(m_arrVertices.data(), m_nVertices * sizeof(DXVertex), pVertexBuffer);
-	if (SUCCEEDED(hr))
+	if (!m_bBuffersMapped)
 	{
-		hr = pDXSaver->MapDataIntoBuffer(m_arrIndices.data(), m_nIndices * sizeof(UINT), pIndexBuffer);
+		hr = pDXSaver->MapDataIntoBuffer(m_arrVertices.data(), m_nVertices * sizeof(DXVertex), pVertexBuffer);
+		if (SUCCEEDED(hr))
+		{
+			hr = pDXSaver->MapDataIntoBuffer(m_arrIndices.data(), m_nIndices * sizeof(UINT), pIndexBuffer);
+		}
+		m_bBuffersMapped = true;
 	}
 
 	return SUCCEEDED(hr) ? m_nIndices : 0;

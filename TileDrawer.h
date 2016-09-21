@@ -30,8 +30,11 @@ private:
 	size_t m_nVertices;
 	size_t m_nIndices;
 
+	bool m_bBuffersMapped;
+
 	std::vector<std::vector<XMFLOAT4>> m_arrColors;	// Color array for drawing
 	bool m_bUseColorSpecies;
+	bool m_bBorders;
 	size_t m_nBaseColors;
 };
 

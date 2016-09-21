@@ -12,7 +12,7 @@ public:
 	float GetRadius() const { return m_QTileStore.GetRadius(); }
 
 	const size_t m_iSymmetry;
-	const size_t m_nMaxTiles = 400;
+	const size_t m_nMaxTiles = 2000;
 
 private:
 	void LocateQTile(UINT nDLineSet0, int nDOffset0, UINT nDLineSet1, int nDOffset, const CQTile *&Tile);

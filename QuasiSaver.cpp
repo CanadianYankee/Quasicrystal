@@ -67,11 +67,13 @@ HRESULT CQuasiSaver::InitializeTiling()
 		m_pQuasiCalculator = nullptr;
 	}
 
-	m_pQuasiCalculator = new CQuasiCalculator(5);
+	m_pQuasiCalculator = new CQuasiCalculator((rand() % 5) * 2 + 5);
 	m_pTileDrawer = new CTileDrawer(m_pQuasiCalculator);
 
 	m_fCurrentScale = 1.0f;
 	m_fLastGenerated = 0.0f;
+	m_fRotationAngle = 0.0f;
+	m_fRotationSpeedBase = frand() * 16.0f - 8.0f;
 	
 	return S_OK;
 }
@@ -129,7 +131,9 @@ HRESULT CQuasiSaver::LoadShaders()
 	{
 		hr = pShader.As<ID3D11PixelShader>(&m_pPixelShader);
 		if (SUCCEEDED(hr))
+		{
 			D3DDEBUGNAME(m_pPixelShader, "Pixel Shader");
+		}
 	}
 	if (FAILED(hr)) return hr;
 
@@ -191,8 +195,9 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 		m_fLastGenerated = T;
 	}
 
-	// Time-based spin
-	XMMATRIX mat = XMMatrixRotationZ(T);
+	// Spin
+	m_fRotationAngle += m_fRotationSpeedBase * dt / m_fCurrentScale;
+	XMMATRIX mat = XMMatrixRotationZ(m_fRotationAngle);
 
 	// Zoom to fit viewport, adjusting for aspect ratio
 	float fDesiredScale = m_pQuasiCalculator->GetRadius();
