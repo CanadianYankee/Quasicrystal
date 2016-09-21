@@ -29,5 +29,9 @@ private:
 	std::vector<UINT> m_arrIndices;
 	size_t m_nVertices;
 	size_t m_nIndices;
+
+	std::vector<std::vector<XMFLOAT4>> m_arrColors;	// Color array for drawing
+	bool m_bUseColorSpecies;
+	size_t m_nBaseColors;
 };
 

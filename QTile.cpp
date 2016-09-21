@@ -43,6 +43,17 @@ UINT CQTile::Species() const
 	return (s <= m_pParent->m_iSymmetry / 2) ? s : m_pParent->m_iSymmetry - s;
 }
 
+
+int CQTile::OffsetsSum() const
+{
+	int nTotal = 0;
+	for (size_t i = 0; i < m_iDOffsets.size(); i++)
+	{
+		nTotal += m_iDOffsets[i];
+	}
+	return nTotal;
+}
+
 int CQTile::Winding() const
 {
 	return (m_nMaxDLineSet - m_nMinDLineSet <= m_pParent->m_iSymmetry / 2) ? 1 : -1;

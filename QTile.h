@@ -49,6 +49,7 @@ public:
 
 	// Returns the "species" of the tile. Smaller species have a sharper angle at the zeroth vertex
 	UINT Species() const;
+	int OffsetsSum() const;
 	int Winding() const;
 	void GetVertices (std::vector<XMFLOAT2> &vecVertices) const;
 
