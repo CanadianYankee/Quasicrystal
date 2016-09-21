@@ -205,7 +205,7 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 	// Generate more tiles as called for
 	if (T - m_fLastGenerated > m_fGenerationPeriod)
 	{
-		int n = m_pTileDrawer->DrawNextTiles(1);
+		int n = m_pTileDrawer->DrawNextTiles((size_t)floor(sqrt(m_pQuasiCalculator->GetRadius())) + 1 );
 		if (n == 0)
 		{
 			// We've hit our max - restart!

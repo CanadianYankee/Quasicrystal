@@ -57,7 +57,7 @@ private:
 
 	float m_fCurrentScale;
 	const float m_fScaleInertia = 1.0f;
-	const float m_fGenerationPeriod = 0.05f;
+	const float m_fGenerationPeriod = 0.2f;
 	float m_fRotationAngle;
 	float m_fRotationSpeedBase;
 	float m_fLastGenerated;
