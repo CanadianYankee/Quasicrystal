@@ -60,16 +60,22 @@ void CDrawTimer::Stop()
 	}
 }
 
-void CDrawTimer::Tick()
+bool CDrawTimer::Tick(float fFrameRefreshInterval)
 {
 	if( m_bStopped )
 	{
 		m_DeltaTime = 0.0;
-		return;
+		return false;
 	}
 
 	__int64 currTime;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
+	if (fFrameRefreshInterval > 0 && (currTime - m_CurrTime) * m_SecondsPerCount < fFrameRefreshInterval)
+	{
+		// Too soon for a tick
+		return false;
+	}
+
 	m_CurrTime = currTime;
 
 	// Time difference between this frame and the previous.
@@ -85,6 +91,8 @@ void CDrawTimer::Tick()
 	{
 		m_DeltaTime = 0.0;
 	}
+
+	return true;
 }
 
 // Returns the total time elapsed since Reset() was called, NOT counting any

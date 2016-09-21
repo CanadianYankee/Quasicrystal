@@ -8,7 +8,8 @@ CSaverBase::CSaverBase(void) :
 	m_4xMsaaQuality(0),
 	m_bEnable4xMsaa(true),
 	m_iSaverIndex(0),
-	m_iNumSavers(0)
+	m_iNumSavers(0),
+	m_fMinFrameRefreshTime(1.0f / 60.0f)
 {
 	TCHAR path[_MAX_PATH];
 	TCHAR drive[_MAX_DRIVE];
@@ -340,11 +341,16 @@ void CSaverBase::Tick()
 {
 	if(m_bRunning)
 	{
-		m_Timer.Tick();
-
-		if(!IterateSaver(m_Timer.DeltaTime(), m_Timer.TotalTime()))
+		if (m_Timer.Tick(m_fMinFrameRefreshTime))
 		{
-			PostMessage(m_hMyWindow, WM_DESTROY, 0, 0);
+			if (!IterateSaver(m_Timer.DeltaTime(), m_Timer.TotalTime()))
+			{
+				PostMessage(m_hMyWindow, WM_DESTROY, 0, 0);
+			}
+		}
+		else
+		{
+			::Sleep(0);
 		}
 	}
 	else

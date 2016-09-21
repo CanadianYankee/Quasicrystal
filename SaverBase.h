@@ -79,5 +79,6 @@ protected:
 	float m_fAspectRatio;
 	bool m_bRunning;
 	CDrawTimer m_Timer;
+	float m_fMinFrameRefreshTime;
 };
 
