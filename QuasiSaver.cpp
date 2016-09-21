@@ -30,6 +30,7 @@ BOOL CQuasiSaver::InitSaverData()
 	hr = PrepareShaderConstants();
 	if (FAILED(hr)) return FALSE;
 
+
 	return SUCCEEDED(hr);
 }
 
@@ -75,6 +76,9 @@ HRESULT CQuasiSaver::InitializeTiling()
 	m_fRotationAngle = 0.0f;
 	m_fRotationSpeedBase = frand() * 16.0f - 8.0f;
 	
+	m_bFirstFrame = false;
+	m_fPreviousFrame = 0;
+
 	return S_OK;
 }
 
@@ -170,6 +174,22 @@ BOOL CQuasiSaver::ResumeSaver()
 
 BOOL CQuasiSaver::IterateSaver(float dt, float T)
 {
+	if (!m_bFirstFrame)
+	{
+		m_bFirstFrame = true;
+	}
+	else if (T - m_fPreviousFrame >= 1.0f / 60.0f)
+	{
+		dt = T - m_fPreviousFrame;
+	}
+	else
+	{
+		::Sleep(0);
+		return TRUE;
+	}
+
+	m_fPreviousFrame = T;
+
 	BOOL bResult = UpdateScene(dt, T);
 
 	if (bResult)
