@@ -25,7 +25,7 @@ public:
 	void ResumeResized(int cx, int cy);
 	void CleanUp();
 
-	HRESULT MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource = 0, D3D11_MAP MapType = D3D11_MAP_WRITE_DISCARD);
+	HRESULT MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D12Resource> pResource, UINT Subresource = 0);
 
 protected:
 	// Override these functions to implement your saver - return FALSE to error out and shut down
@@ -37,35 +37,37 @@ protected:
 	virtual void CleanUpSaver() = 0;
 
 	// Utility functions for saver class to use
-	enum ShaderType 
-	{	VertexShader, PixelShader, GeometryShader, ComputeShader, HullShader, DomainShader };
-	struct VS_INPUTLAYOUTSETUP
-	{
-		const D3D11_INPUT_ELEMENT_DESC *pInputDesc;
-		UINT NumElements;
-		ID3D11InputLayout *pInputLayout;
-	};
-	HRESULT LoadShader(ShaderType type, const std::wstring &strFileName, ComPtr<ID3D11ClassLinkage> pClassLinkage, ComPtr<ID3D11DeviceChild> *pShader, VS_INPUTLAYOUTSETUP *pILS = NULL);
-	HRESULT LoadTexture(const std::wstring &strFileName, ComPtr<ID3D11Texture2D> *ppTexture, ComPtr<ID3D11ShaderResourceView> *ppSRVTexture);
+	void WaitForPreviousFrame();
+	HRESULT LoadShaderBytecode(const std::wstring &strFileName, std::vector<char> &byteCode);
+//	HRESULT LoadTexture(const std::wstring &strFileName, ComPtr<ID3D11Texture2D> *ppTexture, ComPtr<ID3D11ShaderResourceView> *ppSRVTexture);
 
 private:
 	// Internal utility functions
-	HRESULT InitDirect3D();
-	HRESULT GetMyAdapter(IDXGIAdapter **ppAdapter); 
+	HRESULT InitD3DPipeline();
+	HRESULT GetMyAdapter(IDXGIAdapter1 **ppAdapter); 
 	HRESULT LoadBinaryFile(const std::wstring &strPath, std::vector<char> &buffer);
 	BOOL OnResize();
 
 protected:
-	ComPtr<ID3D11Device> m_pD3DDevice;
-	ComPtr<ID3D11DeviceContext> m_pD3DContext;
-	ComPtr<IDXGISwapChain> m_pSwapChain;
-	ComPtr<ID3D11Texture2D> m_pDepthStencilBuffer;
-	ComPtr<ID3D11RenderTargetView> m_pRenderTargetView;
-	ComPtr<ID3D11DepthStencilView> m_pDepthStencilView;
-	D3D11_VIEWPORT m_ScreenViewport;
+	ComPtr<ID3D12Device> m_pD3DDevice;
+	ComPtr<ID3D12CommandQueue> m_pCommandQueue;
+	ComPtr<ID3D12CommandAllocator> m_pCommandAllocator;
+	ComPtr<IDXGISwapChain3> m_pSwapChain;
+	ComPtr<ID3D12DescriptorHeap> m_pRTVHeap;
+	ComPtr<ID3D12DescriptorHeap> m_pCBVHeap;
+	std::vector<ComPtr<ID3D12Resource>> m_arrRenderTargets;
+	UINT m_rtvDescriptorSize;
+	D3D12_VIEWPORT m_viewport;
+	D3D12_RECT m_scissorRect;
 
 	UINT m_4xMsaaQuality;
 	bool m_bEnable4xMsaa;
+	UINT m_nFrameCount;
+	UINT m_iFrameIndex;
+
+	HANDLE m_hFrameFenceEvent;
+	ComPtr<ID3D12Fence> m_pFrameFence;
+	UINT64 m_uFrameFenceValue;
 
 	std::wstring m_strShaderPath;
 	std::wstring m_strGFXResoucePath;

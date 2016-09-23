@@ -113,7 +113,7 @@ bool CTileDrawer::DrawNextTile()
 	return true;
 }
 
-size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer)
+size_t CTileDrawer::RemapBuffers(CQuasiSaver *pDXSaver, ComPtr<ID3D12Resource> pVertexBuffer, ComPtr<ID3D12Resource> pIndexBuffer)
 {
 	HRESULT hr = S_OK;
 	UINT nIndices = 0;

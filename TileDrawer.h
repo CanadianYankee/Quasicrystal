@@ -19,7 +19,7 @@ public:
 	};
 
 	size_t DrawNextTiles(size_t nTiles);
-	size_t RemapBuffers(CQuasiSaver *pSaver, ComPtr<ID3D11Buffer> pVertexBuffer, ComPtr<ID3D11Buffer> pIndexBuffer);
+	size_t RemapBuffers(CQuasiSaver *pSaver, ComPtr<ID3D12Resource> pVertexBuffer, ComPtr<ID3D12Resource> pIndexBuffer);
 
 private:
 	bool DrawNextTile();

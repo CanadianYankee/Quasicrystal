@@ -32,9 +32,10 @@ protected:
 
 private:
 	HRESULT InitializeTiling();
-	HRESULT CreateGeometryBuffers();
-	HRESULT LoadShaders();
-	HRESULT PrepareShaderConstants();
+	HRESULT CreateD3DAssets();
+	HRESULT CreateRootSignature();
+	HRESULT CreatePipeline();
+	HRESULT CreateBuffers();
 
 	BOOL UpdateScene(float dt, float T);
 	BOOL RenderScene();
@@ -42,14 +43,16 @@ private:
 	CQuasiCalculator *m_pQuasiCalculator;
 	CTileDrawer *m_pTileDrawer;
 
-	ComPtr<ID3D11Buffer> m_pVertexBuffer;
-	ComPtr<ID3D11Buffer> m_pIndexBuffer;
+	ComPtr<ID3D12RootSignature> m_pRootSignature;
+	ComPtr<ID3D12PipelineState> m_pPipelineState;
+	ComPtr<ID3D12GraphicsCommandList> m_pRenderCommandList;
 
-	ComPtr<ID3D11VertexShader> m_pVertexShader;
-	ComPtr<ID3D11PixelShader> m_pPixelShader;
-	ComPtr<ID3D11InputLayout> m_pInputLayout;
-
-	ComPtr<ID3D11Buffer> m_pCBFrameVariables;
+	ComPtr<ID3D12Resource> m_pVertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+	ComPtr<ID3D12Resource> m_pIndexBuffer;
+	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+	ComPtr<ID3D12Resource> m_pCBFrameVariables;
+	D3D12_CONSTANT_BUFFER_VIEW_DESC m_pCBFrameVariablesView;
 	FRAME_VARIABLES m_sFrameVariables;
 
 	float m_fCurrentScale;

@@ -27,7 +27,10 @@
 #include <sstream>
 #include <fstream>
 
-#include <d3d11.h>
+#include <d3d12.h>
+#include <DXGI1_4.h>
+#include <D3Dcompiler.h>
+#include "D3dx12.h"
 #include <DirectXMath.h>
 #include <wrl/client.h>
 

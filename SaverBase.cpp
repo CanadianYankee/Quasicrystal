@@ -1,12 +1,16 @@
 #include "stdafx.h"
 #include "SaverBase.h"
-#include "DDSTextureLoader.h"
+//#include "DDSTextureLoader.h"
 
 CSaverBase::CSaverBase(void) :
 	m_hMyWindow(NULL),
 	m_bRunning(false),	
 	m_4xMsaaQuality(0),
-	m_bEnable4xMsaa(true),
+	m_bEnable4xMsaa(false),
+	m_nFrameCount(2),
+	m_iFrameIndex(0),
+	m_uFrameFenceValue(0),
+	m_hFrameFenceEvent(0),
 	m_iSaverIndex(0),
 	m_iNumSavers(0),
 	m_fMinFrameRefreshTime(1.0f / 60.0f)
@@ -47,8 +51,9 @@ BOOL CSaverBase::Initialize(const CWindowCluster::SAVER_WINDOW &myWindow, int iS
 
 	m_Timer.Reset();
 
-	hr = InitDirect3D();
-	
+	hr = InitD3DPipeline();
+	if (FAILED(hr))	return(FALSE);
+
 	BOOL bSuccess = SUCCEEDED(hr);
 	if(bSuccess)
 	{
@@ -61,85 +66,103 @@ BOOL CSaverBase::Initialize(const CWindowCluster::SAVER_WINDOW &myWindow, int iS
 }
 
 // Create D3D device, context, and swap chain
-HRESULT CSaverBase::InitDirect3D()
+HRESULT CSaverBase::InitD3DPipeline()
 {
 	HRESULT hr = S_OK;
 
-	UINT createDeviceFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)  
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+	// Enable the D3D12 debug layer
+	{
+		ComPtr<ID3D12Debug> debugController;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+		{
+			debugController->EnableDebugLayer();
+		}
+	}
 #endif
 
-	ComPtr<IDXGIAdapter> pAdapter;
+	// Create the D3D device
+	ComPtr<IDXGIAdapter1> pAdapter;
 	hr = GetMyAdapter(&pAdapter);
 	if(SUCCEEDED(hr))
 	{
-		D3D_FEATURE_LEVEL featureLevel;
-		hr = D3D11CreateDevice(pAdapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, NULL,
-			createDeviceFlags, NULL, 0, D3D11_SDK_VERSION, &m_pD3DDevice, &featureLevel,
-			&m_pD3DContext);
+		hr = D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_pD3DDevice));
 
-		if(SUCCEEDED(hr))
-		{
-			if(featureLevel != D3D_FEATURE_LEVEL_11_0) 
-				hr = E_FAIL;
-		}
 		assert(SUCCEEDED(hr));
-	}
 
-	if(SUCCEEDED(hr))
-	{
-		// Check 4X MSAA quality support for our back buffer format.
-		// All Direct3D 11 capable devices support 4X MSAA for all render 
-		// target formats, so we only need to check quality support.
-		hr = m_pD3DDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &m_4xMsaaQuality);
-		assert( SUCCEEDED(hr) && m_4xMsaaQuality > 0 );
-	}
-
-	if(SUCCEEDED(hr))
-	{
-		// Fill out a DXGI_SWAP_CHAIN_DESC to describe our swap chain.
-		DXGI_SWAP_CHAIN_DESC sd;
-		sd.BufferDesc.Width  = m_iClientWidth;
-		sd.BufferDesc.Height = m_iClientHeight;
-		sd.BufferDesc.RefreshRate.Numerator = 60;
-		sd.BufferDesc.RefreshRate.Denominator = 1;
-		sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-		sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-
-		// Use 4X MSAA? 
-		if( m_bEnable4xMsaa && m_4xMsaaQuality > 0)
+		// Check multisampling
+		if (SUCCEEDED(hr) && m_bEnable4xMsaa)
 		{
-			sd.SampleDesc.Count   = 4;
-			sd.SampleDesc.Quality = m_4xMsaaQuality-1;
+			D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaaData = {};
+			msaaData.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			msaaData.SampleCount = 4;
+			m_pD3DDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaaData, sizeof(msaaData));
+			assert(msaaData.NumQualityLevels > 0);
+			m_4xMsaaQuality = msaaData.NumQualityLevels;
 		}
-		// No MSAA
+	}
+
+	if (SUCCEEDED(hr))
+	{
+		// Create the command queue for rendering
+		D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+		queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		hr = m_pD3DDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_pCommandQueue));
+		if (SUCCEEDED(hr))
+		{
+			hr = m_pD3DDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_pCommandAllocator));
+		}
+	}
+
+	if (SUCCEEDED(hr))
+	{
+			// Fill out a DXGI_SWAP_CHAIN_DESC to describe our swap chain.
+		DXGI_SWAP_CHAIN_DESC1 sd = {};
+		sd.BufferCount = m_nFrameCount;
+		sd.Width = m_iClientWidth;
+		sd.Height = m_iClientHeight;
+		sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		if (m_bEnable4xMsaa  && m_4xMsaaQuality > 0)
+		{
+			sd.SampleDesc.Count = 4;
+			sd.SampleDesc.Quality = m_4xMsaaQuality - 1;
+		}
 		else
 		{
-			sd.SampleDesc.Count   = 1;
+			sd.SampleDesc.Count = 1;
 			sd.SampleDesc.Quality = 0;
 		}
 
-		sd.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		sd.BufferCount  = 1;
-		sd.OutputWindow = m_hMyWindow;
-		sd.Windowed     = TRUE;
-		sd.SwapEffect   = DXGI_SWAP_EFFECT_DISCARD;
-		sd.Flags        = 0;
-
-		ComPtr<IDXGIFactory> dxgiFactory;
-		hr = pAdapter->GetParent(__uuidof(IDXGIFactory), &dxgiFactory);
+		ComPtr<IDXGIFactory4> dxgiFactory;
+		hr = pAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
 
 		if(SUCCEEDED(hr))
 		{
-			hr = dxgiFactory->CreateSwapChain(m_pD3DDevice.Get(), &sd, &m_pSwapChain);
+			ComPtr<IDXGISwapChain1> swapChain1;
+			hr = dxgiFactory->CreateSwapChainForHwnd(m_pCommandQueue.Get(), m_hMyWindow, &sd, nullptr, nullptr, &swapChain1);
+			if (SUCCEEDED(hr))
+			{
+				// Disable Alt-Enter transitions
+				dxgiFactory->MakeWindowAssociation(m_hMyWindow, DXGI_MWA_NO_ALT_ENTER);
+				hr = swapChain1.As(&m_pSwapChain);
+				if (SUCCEEDED(hr))
+					m_iFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+			}
 		}
+	}
 
-		if(SUCCEEDED(hr))
-		{
-			hr = dxgiFactory->MakeWindowAssociation(m_hMyWindow, DXGI_MWA_NO_WINDOW_CHANGES);
-		}
+	// Create the main synchronization object
+	hr = m_pD3DDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pFrameFence));
+	if (FAILED(hr))	return(hr);
+
+	m_uFrameFenceValue = 1;
+	m_hFrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+	if (m_hFrameFenceEvent == nullptr)
+	{
+		return HRESULT_FROM_WIN32(GetLastError());
 	}
 
 	if(SUCCEEDED(hr))
@@ -151,7 +174,7 @@ HRESULT CSaverBase::InitDirect3D()
 }
 
 // Look up the DXGI adapter based on the hosting HWND
-HRESULT CSaverBase::GetMyAdapter(IDXGIAdapter **ppAdapter)
+HRESULT CSaverBase::GetMyAdapter(IDXGIAdapter1 **ppAdapter)
 {
 	HRESULT hr = S_OK;
 	*ppAdapter = nullptr;
@@ -164,18 +187,28 @@ HRESULT CSaverBase::GetMyAdapter(IDXGIAdapter **ppAdapter)
 	monitorInfo.cbSize = sizeof(monitorInfo);
 	GetMonitorInfo(hMonitor, &monitorInfo);
 
-	ComPtr<IDXGIAdapter> pAdapter;
-	ComPtr<IDXGIFactory> pFactory;
-	hr = CreateDXGIFactory(__uuidof(IDXGIFactory), &pFactory);
+	ComPtr<IDXGIAdapter1> pAdapter;
+	ComPtr<IDXGIFactory4> pFactory;
+	hr = CreateDXGIFactory1(IID_PPV_ARGS(&pFactory));
 	if(SUCCEEDED(hr))
 	{
 		for(UINT iAdapter = 0; !bFound; iAdapter++)
 		{
 			// When this call fails, there are no more adapters left
-			HRESULT hrIter = pFactory->EnumAdapters(iAdapter, &pAdapter);
+			HRESULT hrIter = pFactory->EnumAdapters1(iAdapter, &pAdapter);
 			if(FAILED(hrIter)) break;
 
+			// See if the adapter is a hardware adapter 
+			DXGI_ADAPTER_DESC1 desc;
+			pAdapter->GetDesc1(&desc);
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+				continue;
 
+			// Make sure it supports D3D12
+			if (FAILED(D3D12CreateDevice(pAdapter.Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+				continue;
+
+			// Finally, check to see if it is displaying on our monitor
 			for(UINT iOutput = 0; !bFound; iOutput++)
 			{
 				ComPtr<IDXGIOutput> pOutput;
@@ -199,120 +232,43 @@ HRESULT CSaverBase::GetMyAdapter(IDXGIAdapter **ppAdapter)
 		return hr;
 }
 
-HRESULT CSaverBase::LoadShader(ShaderType type, const std::wstring &strFileName, ComPtr<ID3D11ClassLinkage> pClassLinkage, ComPtr<ID3D11DeviceChild> *pShader, VS_INPUTLAYOUTSETUP *pILS)
+HRESULT CSaverBase::LoadShaderBytecode(const std::wstring &strFileName, std::vector<char> &byteCode)
 {
 	HRESULT hr = S_OK;
 
 	std::wstring strFullPath = m_strShaderPath + strFileName;
 
 	std::vector<char> buffer;
-	hr = LoadBinaryFile(strFullPath, buffer);
-
-	if(SUCCEEDED(hr))
-	{
-		switch(type)
-		{
-		case VertexShader:
-			{
-				ComPtr<ID3D11VertexShader> pVertexShader;
-				hr = m_pD3DDevice->CreateVertexShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pVertexShader);
-				if(SUCCEEDED(hr) && (pILS))
-				{
-					hr = m_pD3DDevice->CreateInputLayout(pILS->pInputDesc, pILS->NumElements,
-						buffer.data(), buffer.size(), &pILS->pInputLayout);
-				}
-				if(SUCCEEDED(hr))
-				{
-					hr = pVertexShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-
-		case PixelShader:
-			{
-				ComPtr<ID3D11PixelShader> pPixelShader;
-				hr = m_pD3DDevice->CreatePixelShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pPixelShader);
-				if(SUCCEEDED(hr))
-				{
-					hr = pPixelShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-			
-		case GeometryShader:
-			{
-				ComPtr<ID3D11GeometryShader> pGeometryShader;
-				hr = m_pD3DDevice->CreateGeometryShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pGeometryShader);
-				if(SUCCEEDED(hr))
-				{
-					hr = pGeometryShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-			
-		case ComputeShader:
-			{
-				ComPtr<ID3D11ComputeShader> pComputeShader;
-				hr = m_pD3DDevice->CreateComputeShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pComputeShader);
-				if(SUCCEEDED(hr))
-				{
-					hr = pComputeShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-
-		case HullShader:
-			{
-				ComPtr<ID3D11HullShader> pHullShader;
-				hr = m_pD3DDevice->CreateHullShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pHullShader);
-				if(SUCCEEDED(hr))
-				{
-					hr = pHullShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-			
-		case DomainShader:
-			{
-				ComPtr<ID3D11DomainShader> pDomainShader;
-				hr = m_pD3DDevice->CreateDomainShader(buffer.data(), buffer.size(), pClassLinkage.Get(), &pDomainShader);
-				if(SUCCEEDED(hr))
-				{
-					hr = pDomainShader.As<ID3D11DeviceChild>(pShader);
-				}
-				break;
-			}
-		}
-	}
+	hr = LoadBinaryFile(strFullPath, byteCode);
 
 	return hr;
 }
 
-HRESULT CSaverBase::LoadTexture(const std::wstring &strFileName, ComPtr<ID3D11Texture2D> *ppTexture, ComPtr<ID3D11ShaderResourceView> *ppSRVTexture)
-{
-	HRESULT hr = S_OK;
-
-	std::wstring strFullPath = m_strGFXResoucePath + strFileName;
-
-	std::vector<char> buffer;
-	hr = LoadBinaryFile(strFullPath, buffer);
-
-	if(ppTexture) *ppTexture = nullptr;
-	if(ppSRVTexture) *ppSRVTexture = nullptr;
-	ComPtr<ID3D11Resource> pResource;
-	ComPtr<ID3D11ShaderResourceView> pSRV;
-	uint8_t *pData = reinterpret_cast<uint8_t *>(buffer.data());
-	hr = CreateDDSTextureFromMemory(m_pD3DDevice.Get(), pData, buffer.size(), &pResource, &pSRV);
-	if(SUCCEEDED(hr))
-	{
-		if(ppSRVTexture)
-			pSRV.As<ID3D11ShaderResourceView>(ppSRVTexture);
-		if(ppTexture)
-			pResource.As<ID3D11Texture2D>(ppTexture);
-	}
-
-	return hr;
-}
+//HRESULT CSaverBase::LoadTexture(const std::wstring &strFileName, ComPtr<ID3D11Texture2D> *ppTexture, ComPtr<ID3D11ShaderResourceView> *ppSRVTexture)
+//{
+//	HRESULT hr = S_OK;
+//
+//	std::wstring strFullPath = m_strGFXResoucePath + strFileName;
+//
+//	std::vector<char> buffer;
+//	hr = LoadBinaryFile(strFullPath, buffer);
+//
+//	if(ppTexture) *ppTexture = nullptr;
+//	if(ppSRVTexture) *ppSRVTexture = nullptr;
+//	ComPtr<ID3D11Resource> pResource;
+//	ComPtr<ID3D11ShaderResourceView> pSRV;
+//	uint8_t *pData = reinterpret_cast<uint8_t *>(buffer.data());
+//	hr = CreateDDSTextureFromMemory(m_pD3DDevice.Get(), pData, buffer.size(), &pResource, &pSRV);
+//	if(SUCCEEDED(hr))
+//	{
+//		if(ppSRVTexture)
+//			pSRV.As<ID3D11ShaderResourceView>(ppSRVTexture);
+//		if(ppTexture)
+//			pResource.As<ID3D11Texture2D>(ppTexture);
+//	}
+//
+//	return hr;
+//}
 
 HRESULT CSaverBase::LoadBinaryFile(const std::wstring &strPath, std::vector<char> &buffer)
 {
@@ -356,6 +312,31 @@ void CSaverBase::Tick()
 	else
 	{
 	}
+}
+
+void CSaverBase::WaitForPreviousFrame()
+{
+	HRESULT hr = S_OK;
+	
+	// Signal and increment the fence value
+	const UINT64 fence = m_uFrameFenceValue;
+	hr = m_pCommandQueue->Signal(m_pFrameFence.Get(), fence);
+	if (SUCCEEDED(hr))
+	{
+		m_uFrameFenceValue++;
+
+		// Wait until the previous frame is finished
+		if (m_pFrameFence->GetCompletedValue() < fence)
+		{
+			hr = m_pFrameFence->SetEventOnCompletion(fence, m_hFrameFenceEvent);
+			if (SUCCEEDED(hr))
+			{
+				WaitForSingleObject(m_hFrameFenceEvent, INFINITE);
+			}
+		}
+	}
+
+	m_iFrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
 }
 
 void CSaverBase::Pause()
@@ -409,77 +390,61 @@ BOOL CSaverBase::OnResize()
 {
 	HRESULT hr = S_OK;
 
-	if(m_pSwapChain)
+	// Set the viewport and scissor rectangle
+	m_viewport.TopLeftX = 0.0f;
+	m_viewport.TopLeftY = 0.0f;
+	m_viewport.Width = static_cast<float>(m_iClientWidth);
+	m_viewport.Height = static_cast<float>(m_iClientHeight);
+	m_viewport.MaxDepth = 1.0f;
+	m_viewport.MinDepth = 0.0f;
+	
+	m_scissorRect.left = 0;
+	m_scissorRect.top = 0;
+	m_scissorRect.right = m_iClientWidth;
+	m_scissorRect.bottom = m_iClientHeight;
+
+	if (m_pSwapChain)
 	{
 		// Release the old views, as they hold references to the buffers we
-		// will be destroying.  Also release the old depth/stencil buffer.
-		m_pRenderTargetView = nullptr;
-		m_pDepthStencilView = nullptr;
-		m_pDepthStencilBuffer = nullptr;
+		// will be destroying.  
+		m_pRTVHeap = nullptr;
 
-		// Resize the swap chain and recreate the render target view.
+		// Resize the swap chain
 		hr = m_pSwapChain->ResizeBuffers(1, m_iClientWidth, m_iClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 
-		if(SUCCEEDED(hr))
+		// Create descriptor heap for render target view
+		if (SUCCEEDED(hr))
 		{
-			ComPtr<ID3D11Texture2D> pBackBuffer;
-			hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &pBackBuffer);
-			if(SUCCEEDED(hr))
-			{
-				hr = m_pD3DDevice->CreateRenderTargetView(pBackBuffer.Get(), 0, &m_pRenderTargetView);
-			}
+			D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+			rtvHeapDesc.NumDescriptors = m_nFrameCount;
+			rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			hr = m_pD3DDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_pRTVHeap));
+			m_rtvDescriptorSize = m_pD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		}
 
-		if(SUCCEEDED(hr))
+		if (SUCCEEDED(hr))
 		{
-			// Create the depth/stencil buffer and view.
-			D3D11_TEXTURE2D_DESC depthStencilDesc;
-	
-			depthStencilDesc.Width     = m_iClientWidth;
-			depthStencilDesc.Height    = m_iClientHeight;
-			depthStencilDesc.MipLevels = 1;
-			depthStencilDesc.ArraySize = 1;
-			depthStencilDesc.Format    = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-			// Use 4X MSAA? --must match swap chain MSAA values.
-			if( m_bEnable4xMsaa )
-			{
-				depthStencilDesc.SampleDesc.Count   = 4;
-				depthStencilDesc.SampleDesc.Quality = m_4xMsaaQuality-1;
-			}
-			// No MSAA
-			else
-			{
-				depthStencilDesc.SampleDesc.Count   = 1;
-				depthStencilDesc.SampleDesc.Quality = 0;
-			}
-
-			depthStencilDesc.Usage          = D3D11_USAGE_DEFAULT;
-			depthStencilDesc.BindFlags      = D3D11_BIND_DEPTH_STENCIL;
-			depthStencilDesc.CPUAccessFlags = 0; 
-			depthStencilDesc.MiscFlags      = 0;
-
-			hr = m_pD3DDevice->CreateTexture2D(&depthStencilDesc, 0, &m_pDepthStencilBuffer);
-			if(SUCCEEDED(hr))
-			{
-				hr = m_pD3DDevice->CreateDepthStencilView(m_pDepthStencilBuffer.Get(), 0, &m_pDepthStencilView);
-			}
+			// Create descriptor heap for constant buffer views
+			D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+			cbvHeapDesc.NumDescriptors = 1;
+			cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+			cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+			hr = m_pD3DDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_pCBVHeap));
 		}
 
-		if(SUCCEEDED(hr))
+		// Create frame resources
+		if (SUCCEEDED(hr))
 		{
-			// Bind the render target view and depth/stencil view to the pipeline.
-			m_pD3DContext->OMSetRenderTargets(1, m_pRenderTargetView.GetAddressOf(), m_pDepthStencilView.Get());
-	
-			// Set the viewport transform.
-			m_ScreenViewport.TopLeftX = 0;
-			m_ScreenViewport.TopLeftY = 0;
-			m_ScreenViewport.Width    = static_cast<float>(m_iClientWidth);
-			m_ScreenViewport.Height   = static_cast<float>(m_iClientHeight);
-			m_ScreenViewport.MinDepth = 0.0f;
-			m_ScreenViewport.MaxDepth = 1.0f;
-
-			m_pD3DContext->RSSetViewports(1, &m_ScreenViewport);
+			m_arrRenderTargets.resize(m_nFrameCount);
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_pRTVHeap->GetCPUDescriptorHandleForHeapStart());
+			for (UINT n = 0; n < m_nFrameCount; n++)
+			{
+				hr = m_pSwapChain->GetBuffer(n, IID_PPV_ARGS(&m_arrRenderTargets[n]));
+				if (FAILED(hr)) break;
+				m_pD3DDevice->CreateRenderTargetView(m_arrRenderTargets[n].Get(), nullptr, rtvHandle);
+				rtvHandle.Offset(1, m_rtvDescriptorSize);
+			}
 		}
 	}
 
@@ -489,9 +454,9 @@ BOOL CSaverBase::OnResize()
 }
 
 // Helper function for frequently-updated buffers
-HRESULT CSaverBase::MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D11Resource> pResource, UINT Subresource, D3D11_MAP MapType)
+HRESULT CSaverBase::MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID3D12Resource> pResource, UINT Subresource)
 {
-	if (m_pD3DContext == nullptr || pResource == nullptr)
+	if (pResource == nullptr)
 	{
 		assert(false);
 		return E_FAIL;
@@ -499,20 +464,13 @@ HRESULT CSaverBase::MapDataIntoBuffer(const void *pData, size_t nSize, ComPtr<ID
 
 	HRESULT hr = S_OK;
 
-	D3D11_MAPPED_SUBRESOURCE mapData;
-	hr = m_pD3DContext->Map(pResource.Get(), Subresource, MapType, 0, &mapData);
+	UINT8 *pMapData;
+	CD3DX12_RANGE readRange(0, 0);
+	hr = pResource->Map(Subresource, &readRange, reinterpret_cast<void**>(&pMapData));
 	if (SUCCEEDED(hr))
 	{
-		size_t nTarget = mapData.RowPitch * ((mapData.DepthPitch > 0) ? mapData.DepthPitch : 1);
-		if (nTarget >= nSize)
-		{
-			memcpy(mapData.pData, pData, nSize);
-		}
-		else
-		{
-			hr = E_FAIL;
-		}
-		m_pD3DContext->Unmap(pResource.Get(), Subresource);
+		CopyMemory(pMapData, pData, nSize);
+		pResource->Unmap(Subresource, nullptr);
 	}
 
 	return hr;
@@ -524,6 +482,8 @@ void CSaverBase::CleanUp()
 		Pause();
 
 	CleanUpSaver();
+
+	CloseHandle(m_hFrameFenceEvent);
 }
 
 
