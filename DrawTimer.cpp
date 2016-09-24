@@ -60,7 +60,7 @@ void CDrawTimer::Stop()
 	}
 }
 
-bool CDrawTimer::Tick(float fFrameRefreshInterval)
+bool CDrawTimer::Tick()
 {
 	if( m_bStopped )
 	{
@@ -70,11 +70,6 @@ bool CDrawTimer::Tick(float fFrameRefreshInterval)
 
 	__int64 currTime;
 	QueryPerformanceCounter((LARGE_INTEGER*)&currTime);
-	if (fFrameRefreshInterval > 0 && (currTime - m_CurrTime) * m_SecondsPerCount < fFrameRefreshInterval)
-	{
-		// Too soon for a tick
-		return false;
-	}
 
 	m_CurrTime = currTime;
 

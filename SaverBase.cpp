@@ -12,8 +12,7 @@ CSaverBase::CSaverBase(void) :
 	m_uFrameFenceValue(0),
 	m_hFrameFenceEvent(0),
 	m_iSaverIndex(0),
-	m_iNumSavers(0),
-	m_fMinFrameRefreshTime(1.0f / 60.0f)
+	m_iNumSavers(0)
 {
 	TCHAR path[_MAX_PATH];
 	TCHAR drive[_MAX_DRIVE];
@@ -297,12 +296,11 @@ void CSaverBase::Tick()
 {
 	if(m_bRunning)
 	{
-		if (m_Timer.Tick(m_fMinFrameRefreshTime))
+		m_Timer.Tick();
+		
+		if (!IterateSaver(m_Timer.DeltaTime(), m_Timer.TotalTime()))
 		{
-			if (!IterateSaver(m_Timer.DeltaTime(), m_Timer.TotalTime()))
-			{
-				PostMessage(m_hMyWindow, WM_DESTROY, 0, 0);
-			}
+			PostMessage(m_hMyWindow, WM_DESTROY, 0, 0);
 		}
 		else
 		{
