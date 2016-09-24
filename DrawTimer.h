@@ -9,7 +9,7 @@ public:
 	void Reset(); // Call before message loop.
 	void Start(); // Call when unpaused.
 	void Stop();  // Call when paused.
-	bool Tick(float fFrameRefreshInterval = 0.0f);  // Call to request frame.  Returns true if it's time to do new frame.
+	bool Tick();  // Call do new frame.
 
 	float TotalTime() const;  // in seconds
 	float DeltaTime() const; // in seconds

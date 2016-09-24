@@ -259,7 +259,7 @@ BOOL CQuasiSaver::RenderScene()
 
 	m_pD3DContext->DrawIndexed(nIndices, 0, 0);
 	
-	hr = m_pSwapChain->Present(0, 0);
+	hr = m_pSwapChain->Present(1, 0);
 
 	return SUCCEEDED(hr);
 }
