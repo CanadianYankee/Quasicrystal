@@ -6,6 +6,8 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
+#define SIMPLE_DEBUG
+
 #if (defined(DEBUG) || defined(_DEBUG))
 #define D3DDEBUGNAME(pobj, name) pobj->SetPrivateData(WKPDID_D3DDebugObjectName, lstrlenA(name), name)
 #else
@@ -54,7 +56,9 @@ protected:
 	ComPtr<ID3D12CommandAllocator> m_pCommandAllocator;
 	ComPtr<IDXGISwapChain3> m_pSwapChain;
 	ComPtr<ID3D12DescriptorHeap> m_pRTVHeap;
+#if !defined(SIMPLE_DEBUG)
 	ComPtr<ID3D12DescriptorHeap> m_pCBVHeap;
+#endif
 	std::vector<ComPtr<ID3D12Resource>> m_arrRenderTargets;
 	UINT m_rtvDescriptorSize;
 	D3D12_VIEWPORT m_viewport;

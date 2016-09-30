@@ -49,10 +49,12 @@ private:
 
 	ComPtr<ID3D12Resource> m_pVertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+#if !defined(SIMPLE_DEBUG)
 	ComPtr<ID3D12Resource> m_pIndexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
 	ComPtr<ID3D12Resource> m_pCBFrameVariables;
 	D3D12_CONSTANT_BUFFER_VIEW_DESC m_pCBFrameVariablesView;
+#endif
 	FRAME_VARIABLES m_sFrameVariables;
 
 	float m_fCurrentScale;

@@ -153,15 +153,42 @@ HRESULT CSaverBase::InitD3DPipeline()
 		}
 	}
 
-	// Create the main synchronization object
-	hr = m_pD3DDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pFrameFence));
-	if (FAILED(hr))	return(hr);
-
-	m_uFrameFenceValue = 1;
-	m_hFrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-	if (m_hFrameFenceEvent == nullptr)
+	// Create descriptor heap for render target view
+	if (SUCCEEDED(hr))
 	{
-		return HRESULT_FROM_WIN32(GetLastError());
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = m_nFrameCount;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		hr = m_pD3DDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_pRTVHeap));
+		m_rtvDescriptorSize = m_pD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
+
+#if !defined(SIMPLE_DEBUG)
+	if (SUCCEEDED(hr))
+	{
+		// Create descriptor heap for constant buffer views
+		D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+		cbvHeapDesc.NumDescriptors = 1;
+		cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		hr = m_pD3DDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_pCBVHeap));
+	}
+#endif
+
+	if (SUCCEEDED(hr))
+	{
+		// Create the main synchronization object
+		hr = m_pD3DDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_pFrameFence));
+		if (SUCCEEDED(hr))
+		{
+			m_uFrameFenceValue = 1;
+			m_hFrameFenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+			if (m_hFrameFenceEvent == nullptr)
+			{
+				return HRESULT_FROM_WIN32(GetLastError());
+			}
+		}
 	}
 
 	if(SUCCEEDED(hr))
@@ -401,35 +428,18 @@ BOOL CSaverBase::OnResize()
 	m_scissorRect.right = m_iClientWidth;
 	m_scissorRect.bottom = m_iClientHeight;
 
+#if defined(SIMPLE_DEBUG)
+	if (m_pSwapChain && m_arrRenderTargets.empty())
+#else
 	if (m_pSwapChain)
+#endif
 	{
 		// Release the old views, as they hold references to the buffers we
 		// will be destroying.  
-		m_pRTVHeap = nullptr;
+		m_arrRenderTargets.clear();
 
 		// Resize the swap chain
-		hr = m_pSwapChain->ResizeBuffers(1, m_iClientWidth, m_iClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-
-		// Create descriptor heap for render target view
-		if (SUCCEEDED(hr))
-		{
-			D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-			rtvHeapDesc.NumDescriptors = m_nFrameCount;
-			rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-			rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			hr = m_pD3DDevice->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_pRTVHeap));
-			m_rtvDescriptorSize = m_pD3DDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		}
-
-		if (SUCCEEDED(hr))
-		{
-			// Create descriptor heap for constant buffer views
-			D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-			cbvHeapDesc.NumDescriptors = 1;
-			cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			hr = m_pD3DDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_pCBVHeap));
-		}
+//		hr = m_pSwapChain->ResizeBuffers(1, m_iClientWidth, m_iClientHeight, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 
 		// Create frame resources
 		if (SUCCEEDED(hr))

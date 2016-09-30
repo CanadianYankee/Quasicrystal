@@ -16,6 +16,7 @@ public:
 		XMFLOAT4 Color;
 
 		DXVertex() : Pos(0, 0), Color(0, 0, 0, 0) {}
+		DXVertex(XMFLOAT2 _pos, XMFLOAT4 _color) : Pos(_pos), Color(_color) {}
 	};
 
 	size_t DrawNextTiles(size_t nTiles);

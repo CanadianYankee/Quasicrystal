@@ -92,6 +92,10 @@ HRESULT CQuasiSaver::CreateRootSignature()
 {
 	HRESULT hr = S_OK;
 
+#if defined(SIMPLE_DEBUG)
+	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+	rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+#else
 	// Create a root signature with a descriptor table with a single CBV
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
 	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
@@ -117,10 +121,15 @@ HRESULT CQuasiSaver::CreateRootSignature()
 
 	CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 	rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+#endif
 
 	ComPtr<ID3DBlob> signature;
 	ComPtr<ID3DBlob> error;
+#if defined(SIMPLE_DEBUG)
+	hr = D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error);
+#else
 	hr = D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error);
+#endif
 	if (SUCCEEDED(hr))
 	{
 		hr = m_pD3DDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&m_pRootSignature));
@@ -202,6 +211,17 @@ HRESULT CQuasiSaver::CreateBuffers()
 	m_vertexBufferView.StrideInBytes = sizeof(CTileDrawer::DXVertex);
 	m_vertexBufferView.SizeInBytes = iVertexBufferSize;
 
+#if defined(SIMPLE_DEBUG)
+	CTileDrawer::DXVertex testVertices[] =
+	{
+		{ { 0.0f, 0.25 },{ 1.0f, 0.0f, 0.0f, 1.0f } },
+		{ { 0.25f, -0.25f },{ 0.0f, 1.0f, 0.0f, 1.0f } },
+		{ { -0.25f, -0.25f },{ 0.0f, 0.0f, 1.0f, 1.0f } }
+	};
+
+	MapDataIntoBuffer(testVertices, sizeof(testVertices), m_pVertexBuffer);
+	m_vertexBufferView.SizeInBytes = sizeof(testVertices);
+#else
 	// Create the index buffer 
 	size_t iIndexBufferSize = m_pQuasiCalculator->m_nMaxTiles * 6 * sizeof(UINT);
 
@@ -223,6 +243,7 @@ HRESULT CQuasiSaver::CreateBuffers()
 
 	m_pCBFrameVariablesView.BufferLocation = m_pCBFrameVariables->GetGPUVirtualAddress();
 	m_pCBFrameVariablesView.SizeInBytes = iConstantBufferSize;
+#endif
 
 	return hr;
 }
@@ -258,6 +279,7 @@ BOOL CQuasiSaver::IterateSaver(float dt, float T)
 
 BOOL CQuasiSaver::UpdateScene(float dt, float T)
 {
+#if !defined(SIMPLE_DEBUG)
 	// Generate more tiles as called for
 	if (T - m_fLastGenerated > m_fGenerationPeriod)
 	{
@@ -292,6 +314,7 @@ BOOL CQuasiSaver::UpdateScene(float dt, float T)
 
 	// Save the matrix in the frame variables
 	XMStoreFloat4x4(&(m_sFrameVariables.fv_ViewTransform), XMMatrixTranspose(mat));
+#endif
 
 	return TRUE;
 }
@@ -307,6 +330,7 @@ BOOL CQuasiSaver::RenderScene()
 	}
 
 	// Update our varous buffers
+#if !defined(SIMPLE_DEBUG)
 	hr = MapDataIntoBuffer(&m_sFrameVariables, sizeof(m_sFrameVariables), m_pCBFrameVariables);
 	if (FAILED(hr))
 	{
@@ -314,6 +338,7 @@ BOOL CQuasiSaver::RenderScene()
 		return FALSE;
 	}
 	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
+#endif 
 
 	// Populate the command list
 	hr = m_pCommandAllocator->Reset();
@@ -325,10 +350,12 @@ BOOL CQuasiSaver::RenderScene()
 <<<<<<< HEAD
 	m_pRenderCommandList->SetGraphicsRootSignature(m_pRootSignature.Get());
 
+#if !defined(SIMPLE_DEBUG)
 	ID3D12DescriptorHeap *ppHeaps[] = { m_pCBVHeap.Get() };
 	m_pRenderCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
 	m_pRenderCommandList->SetGraphicsRootDescriptorTable(0, m_pCBVHeap->GetGPUDescriptorHandleForHeapStart());
+#endif
 	m_pRenderCommandList->RSSetViewports(1, &m_viewport);
 	m_pRenderCommandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -343,8 +370,12 @@ BOOL CQuasiSaver::RenderScene()
 	m_pRenderCommandList->ClearRenderTargetView(rtvHandle, background, 0, nullptr);
 	m_pRenderCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pRenderCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+#if defined(SIMPLE_DEBUG)
+	m_pRenderCommandList->DrawInstanced(3, 1, 0, 0);
+#else
 	m_pRenderCommandList->IASetIndexBuffer(&m_indexBufferView);
 	m_pRenderCommandList->DrawIndexedInstanced(nIndices, 1, 0, 0, 0);
+#endif
 
 	// Indicate that the back buffer will now be used to present
 	m_pRenderCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_arrRenderTargets[m_iFrameIndex].Get(),
