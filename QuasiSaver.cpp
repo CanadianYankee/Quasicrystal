@@ -347,7 +347,6 @@ BOOL CQuasiSaver::RenderScene()
 	hr = m_pRenderCommandList->Reset(m_pCommandAllocator.Get(), m_pPipelineState.Get());
 	if (FAILED(hr)) return hr;
 
-<<<<<<< HEAD
 	m_pRenderCommandList->SetGraphicsRootSignature(m_pRootSignature.Get());
 
 #if !defined(SIMPLE_DEBUG)
@@ -388,11 +387,6 @@ BOOL CQuasiSaver::RenderScene()
 		hr = m_pSwapChain->Present(1, 0);
 		WaitForPreviousFrame();
 	}
-=======
-	m_pD3DContext->DrawIndexed(nIndices, 0, 0);
-	
-	hr = m_pSwapChain->Present(1, 0);
->>>>>>> refs/remotes/origin/master
 
 	return SUCCEEDED(hr);
 }
