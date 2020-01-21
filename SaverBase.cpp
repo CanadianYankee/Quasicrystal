@@ -8,7 +8,8 @@ CSaverBase::CSaverBase(void) :
 	m_4xMsaaQuality(0),
 	m_bEnable4xMsaa(true),
 	m_iSaverIndex(0),
-	m_iNumSavers(0)
+	m_iNumSavers(0),
+	m_bUseDepthStencil(true)
 {
 	TCHAR path[_MAX_PATH];
 	TCHAR drive[_MAX_DRIVE];
@@ -428,7 +429,7 @@ BOOL CSaverBase::OnResize()
 			}
 		}
 
-		if(SUCCEEDED(hr))
+		if(SUCCEEDED(hr) && m_bUseDepthStencil)
 		{
 			// Create the depth/stencil buffer and view.
 			D3D11_TEXTURE2D_DESC depthStencilDesc;

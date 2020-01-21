@@ -66,6 +66,7 @@ protected:
 
 	UINT m_4xMsaaQuality;
 	bool m_bEnable4xMsaa;
+	bool m_bUseDepthStencil;
 
 	std::wstring m_strShaderPath;
 	std::wstring m_strGFXResoucePath;
