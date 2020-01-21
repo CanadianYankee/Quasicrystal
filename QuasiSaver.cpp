@@ -8,6 +8,7 @@ CQuasiSaver::CQuasiSaver()
 {
 	m_pQuasiCalculator = nullptr;
 	m_pTileDrawer = nullptr;
+	m_bUseDepthStencil = false;
 }
 
 CQuasiSaver::~CQuasiSaver()
@@ -234,7 +235,6 @@ BOOL CQuasiSaver::RenderScene()
 	float background[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	m_pD3DContext->ClearRenderTargetView(m_pRenderTargetView.Get(), background);
-	m_pD3DContext->ClearDepthStencilView(m_pDepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 	m_pD3DContext->IASetInputLayout(m_pInputLayout.Get());
 	m_pD3DContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -243,7 +243,7 @@ BOOL CQuasiSaver::RenderScene()
 	if (FAILED(hr))
 	{
 		assert(false);
-		return hr;
+		return FALSE;
 	}
 
 	int nIndices = m_pTileDrawer->RemapBuffers(this, m_pVertexBuffer, m_pIndexBuffer);
